@@ -1,8 +1,32 @@
 # Camper Card
 
-Dashboard card for Home Assistant: a caravan, motorhome or camper van in side view with tanks, battery, solar and lights, plus levelling with chock heights. German and English. Works without internet. No integration needed, the card reads existing entities.
+Dashboard card for Home Assistant: a caravan, motorhome or camper van in side view with tanks, battery, solar and lights, plus levelling with chock heights. German and English. Works without internet. No integration needed, the card reads entities you already have.
 
-> Status: in development, not released. Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+*Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
+
+> **Status: early test version (0.1.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+
+## Features
+
+- Side view with 8 generic outlines: caravan (rounded, angular, twin axle), motorhome (semi-integrated, alcove, integrated), camper van (high roof, pop-up roof)
+- Fresh water, grey water (motorhome and van), gas, battery, solar, charger, temperatures
+- Windows light up with the inside light, outside light, water pump or taps as a switch
+- Charge source: solar, charger, both or unknown, derived from your sensors
+- Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
+- Sensors that are assigned but offline show "offline", unassigned parts are hidden
+- Visual editor, light and dark theme, phone and tablet
+
+## Installation (HACS)
+
+The card is not in the HACS store yet. Add it as a custom repository:
+
+1. HACS → ⋮ (top right) → **Custom repositories**
+2. Repository: `https://github.com/F30onAir/ha-camper-card`, type: **Dashboard**
+3. Open **Camper Card** in HACS and download it
+4. Reload the browser (in the companion app: reset the frontend cache in the app settings)
+5. Edit a dashboard → **Add card** → **Camper Card**, then pick your entities in the editor
+
+*Deutsch:* HACS → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard** → **Camper Card** herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**.
 
 ## Example
 
@@ -37,7 +61,13 @@ leveling:
   tolerance: 0.2    # degrees counted as level
 ```
 
-Sign convention: `pitch > 0` means nose or front up, `roll > 0` means right side up (in driving direction). Use `invert_pitch`, `invert_roll`, `swap_axes` and the zero-point button in the editor to match your sensor.
+Tank and battery sensors are expected in percent. Sign convention for tilt: `pitch > 0` means nose or front up, `roll > 0` means right side up (in driving direction). Use `invert_pitch`, `invert_roll`, `swap_axes` and the zero-point button in the editor to match your sensor.
+
+## Support
+
+If you like the card, you can support development with a voluntary coffee:
+
+<a href="https://buymeacoffee.com/f30onair"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
 
 ## Development
 
