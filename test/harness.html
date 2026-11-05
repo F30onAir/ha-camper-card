@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camper Card Testseite</title>
+<style>
+:root{--primary-background-color:#f5f6f7;--card-background-color:#fff;--primary-text-color:#1b1e22;--secondary-text-color:#646b74;--divider-color:#e1e4e8;--primary-color:#0a7fc2}
+:root[data-dark]{--primary-background-color:#111316;--card-background-color:#1c1f23;--primary-text-color:#e8eaec;--secondary-text-color:#9ba3ac;--divider-color:#33383e;--primary-color:#4db3ee}
+body{margin:0;background:var(--primary-background-color);color:var(--primary-text-color);font:14px Roboto,"Segoe UI",system-ui,sans-serif}
+.bar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;align-items:center}
+.bar span{color:var(--secondary-text-color);font-size:12px;margin-right:8px}
+button{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--divider-color);background:var(--card-background-color);color:inherit;cursor:pointer}
+.row{display:flex;gap:16px;flex-wrap:wrap;padding:0 16px 16px;align-items:flex-start}
+.w-phone{width:343px}.w-tablet{width:720px;max-width:100%}
+#log{font:12px ui-monospace,Consolas,monospace;white-space:pre-wrap;padding:0 16px 16px;color:var(--secondary-text-color)}
+</style>
+</head>
+<body>
+<div class="bar"><strong>Camper Card Testseite</strong><span>Gebaute Datei dist/camper-card.js mit nachgestellten Daten, keine Verbindung zu Home Assistant</span>
+  <button data-s="mine">Batterie und Gas offline</button><button data-s="all">Alles zugewiesen</button><button data-s="slope">Am Hang</button><button data-s="none">Nichts zugewiesen</button>
+  <button id="dark">Hell/Dunkel</button><button id="lang">DE/EN</button></div>
+<div class="row"><div class="w-phone"><camper-card id="c1"></camper-card></div><div class="w-tablet"><camper-card id="c2"></camper-card></div></div>
+<div id="log"></div>
+<script type="module">
+import '../dist/camper-card.js';
+const S = {}, log = [];
+const st = (id, state, unit) => { S[id] = { entity_id: id, state: String(state), attributes: unit ? { unit_of_measurement: unit } : {} }; };
+const clear = () => { for (const k of Object.keys(S)) delete S[k]; };
+const mine = () => {
+  clear();
+  st('sensor.battery_soc', 'unavailable', '%'); st('sensor.battery_power', 'unavailable', 'W');
+  st('sensor.fresh_water_level', '0', '%'); st('sensor.gas_level', '0', '%'); st('sensor.gas_sensor_raw', 'unavailable', 'mm');
+  st('sensor.inside_temperature', '4.21', '°C'); st('sensor.fridge_temperature', '6.14', '°C');
+  st('switch.water_pump', 'off'); st('switch.charger', 'off'); st('sensor.charger_power', '0', 'W');
+};
+const helpers = (p, r, sol, li, lo) => {
+  st('input_number.tilt_length', p, '°'); st('input_number.tilt_side', r, '°'); st('input_number.solar_power', sol, 'W');
+  st('input_boolean.light_inside', li ? 'on' : 'off'); st('input_boolean.light_outside', lo ? 'on' : 'off');
+};
+const SCEN = {
+  mine,
+  all: () => { mine(); st('sensor.battery_soc', '78', '%'); st('sensor.battery_power', '145', 'W'); st('sensor.fresh_water_level', '62', '%');
+    st('sensor.gas_level', '74', '%'); st('sensor.gas_sensor_raw', '210', 'mm'); helpers(1.4, -0.9, 210, true, false); },
+  slope: () => { SCEN.all(); helpers(-2.6, 1.8, 0, true, true); st('sensor.battery_power', '-42', 'W'); st('sensor.gas_level', '12', '%'); },
+  none: () => clear(),
+};
+const CFG = {
+  type: 'custom:camper-card', vehicle: 'caravan', outline: 'caravan_round', pump_name: 'Wasserhähne',
+  entities: {
+    battery: 'sensor.battery_soc', battery_power: 'sensor.battery_power', solar: 'input_number.solar_power',
+    charger: 'switch.charger', charger_power: 'sensor.charger_power',
+    fresh: 'sensor.fresh_water_level', gas: 'sensor.gas_level', gas_availability: 'sensor.gas_sensor_raw',
+    temp_inside: 'sensor.inside_temperature', temp_fridge: 'sensor.fridge_temperature',
+    pump: 'switch.water_pump', light_inside: 'input_boolean.light_inside', light_outside: 'input_boolean.light_outside',
+    pitch: 'input_number.tilt_length', roll: 'input_number.tilt_side',
+  },
+};
+const ui = { dark: false, lang: 'de' };
+const cards = [document.getElementById('c1'), document.getElementById('c2')];
+const out = document.getElementById('log');
+const note = (m) => { log.push(m); out.textContent = log.slice(-8).join('\n'); };
+function push() {
+  document.documentElement.toggleAttribute('data-dark', ui.dark);
+  const hass = { states: { ...S }, themes: { darkMode: ui.dark }, locale: { language: ui.lang }, language: ui.lang,
+    callService(domain, service, data) {
+      note(`callService ${domain}.${service} ${JSON.stringify(data)}`);
+      if (service === 'toggle') { const e = S[data.entity_id]; if (e) e.state = e.state === 'on' ? 'off' : 'on'; push(); }
+      return Promise.resolve();
+    } };
+  for (const c of cards) c.hass = hass;
+}
+function setConfig(cfg) { for (const c of cards) c.setConfig(cfg); push(); }
+document.addEventListener('hass-more-info', (e) => note(`more-info ${e.detail.entityId}`));
+document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { SCEN[b.dataset.s](); push(); }));
+document.getElementById('dark').addEventListener('click', () => { ui.dark = !ui.dark; push(); });
+document.getElementById('lang').addEventListener('click', () => { ui.lang = ui.lang === 'de' ? 'en' : 'de'; push(); });
+window.__h = { S, st, SCEN, CFG, ui, cards, log, push, setConfig, helpers };
+SCEN.all();
+setConfig(CFG);
+</script>
+</body>
+</html>
