@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Camper Card README-Bilder</title>
+<!-- Erzeugt die Bilder für das README aus der gebauten Karte mit Beispieldaten.
+     Aufruf: docs/shots.html?shot=overview-dark | leveling-light | outlines -->
+<style>
+:root{--card-background-color:#fff;--primary-text-color:#1b1e22;--secondary-text-color:#646b74;--divider-color:#e1e4e8;--primary-color:#0a7fc2;--bg:#eef1f4}
+:root[data-dark]{--card-background-color:#1c1f23;--primary-text-color:#e8eaec;--secondary-text-color:#9ba3ac;--divider-color:#33383e;--primary-color:#4db3ee;--bg:#111316}
+html,body{margin:0;background:var(--bg)}
+body{padding:24px;font-family:"Segoe UI",Roboto,system-ui,sans-serif;display:inline-block}
+.one{width:720px}
+.grid{display:grid;grid-template-columns:repeat(3,400px);gap:16px}
+.note{display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;font-size:17px;line-height:1.45;color:var(--secondary-text-color)}
+.note b{display:block;color:var(--primary-text-color);font-size:19px;font-weight:600;margin-bottom:6px}
+.cell{position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--divider-color);background:var(--card-background-color)}
+.cell camper-card{--ha-card-border-width:0;--ha-card-border-radius:0}
+.cover{position:absolute;left:0;right:0;bottom:0;background:var(--card-background-color)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import '../dist/camper-card.js';
+const shot = new URLSearchParams(location.search).get('shot') || 'overview-dark';
+const S = {};
+const st = (id, state, unit) => { S[id] = { entity_id: id, state: String(state), attributes: unit ? { unit_of_measurement: unit } : {} }; };
+st('sensor.battery_soc', '78', '%'); st('sensor.battery_power', '145', 'W'); st('sensor.solar_power', '210', 'W');
+st('sensor.fresh_water', '62', '%'); st('sensor.grey_water', '35', '%'); st('sensor.gas', '74', '%');
+st('sensor.inside_temperature', '19.5', '°C'); st('sensor.fridge_temperature', '6.1', '°C');
+st('switch.water_pump', 'off'); st('light.inside', 'on'); st('light.awning', 'off');
+st('sensor.tilt_length', '1.4', '°'); st('sensor.tilt_side', '-0.9', '°');
+const full = {
+  battery: 'sensor.battery_soc', battery_power: 'sensor.battery_power', solar: 'sensor.solar_power', fresh: 'sensor.fresh_water',
+  grey: 'sensor.grey_water', gas: 'sensor.gas', temp_inside: 'sensor.inside_temperature', temp_fridge: 'sensor.fridge_temperature',
+  pump: 'switch.water_pump', light_inside: 'light.inside', light_outside: 'light.awning', pitch: 'sensor.tilt_length', roll: 'sensor.tilt_side',
+};
+const dark = shot === 'overview-dark';
+document.documentElement.toggleAttribute('data-dark', dark);
+const hass = { states: S, themes: { darkMode: dark }, locale: { language: 'de' }, language: 'de', callService: () => Promise.resolve() };
+const root = document.getElementById('root');
+function card(cfg, view) {
+  const el = document.createElement('camper-card');
+  el.setConfig({ type: 'custom:camper-card', language: 'de', ...cfg });
+  if (view) el._ui.view = view;
+  el.hass = hass;
+  return el;
+}
+if (shot === 'overview-dark' || shot === 'leveling-light') {
+  root.className = 'one';
+  const c = card({ name: 'Wohnwagen', vehicle: 'caravan', outline: 'caravan_round', entities: full }, shot === 'leveling-light' ? 'level' : null);
+  root.append(c);
+  if (shot === 'leveling-light') c._render();
+}
+if (shot === 'outlines') {
+  root.className = 'grid';
+  const OUT = [['caravan', 'caravan_round', 'Wohnwagen abgerundet'], ['caravan', 'caravan_box', 'Wohnwagen kantig'], ['caravan', 'caravan_tandem', 'Wohnwagen Tandemachse'],
+    ['motorhome', 'mh_semi', 'Wohnmobil teilintegriert'], ['motorhome', 'mh_alcove', 'Wohnmobil Alkoven'], ['motorhome', 'mh_integrated', 'Wohnmobil integriert'],
+    ['van', 'van_high', 'Camper Van Hochdach'], ['van', 'van_popup', 'Camper Van Aufstelldach']];
+  const ents = { battery: 'sensor.battery_soc', battery_power: 'sensor.battery_power', solar: 'sensor.solar_power', fresh: 'sensor.fresh_water',
+    grey: 'sensor.grey_water', gas: 'sensor.gas', light_inside: 'light.inside' };
+  for (const [vehicle, outline, name] of OUT) {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    const c = card({ name, vehicle, outline, entities: ents });
+    cell.append(c); root.append(cell);
+  }
+  // Nur Kopfzeile und Seitenansicht zeigen, die Kacheln darunter abschneiden.
+  const note = document.createElement('div'); note.className = 'cell note';
+  note.innerHTML = '<div><b>8 allgemeine Umrisse</b>Selbst gezeichnete Annäherungen, keine Herstellerzeichnungen.<br>Umrisse gängiger Baureihen sind geplant.</div>';
+  root.append(note);
+  // Je Reihe (Wohnwagen, Wohnmobil, Van) gleich hoch, darunter abdecken: nur Kopfzeile und Seitenansicht bleiben sichtbar.
+  setTimeout(() => {
+    const cells = [...root.querySelectorAll('.cell:not(.note)')];
+    const crops = cells.map((cell) => Math.floor(cell.firstChild.shadowRoot.querySelector('.hero').getBoundingClientRect().bottom - cell.getBoundingClientRect().top) + 6);
+    const rowH = [];
+    crops.forEach((c, i) => { const r = Math.floor(i / 3); rowH[r] = Math.max(rowH[r] || 0, c); });
+    cells.forEach((cell, i) => {
+      cell.style.height = `${rowH[Math.floor(i / 3)]}px`;
+      const cover = document.createElement('div'); cover.className = 'cover'; cover.style.top = `${crops[i]}px`; cell.append(cover);
+    });
+    note.style.height = `${rowH[2]}px`;
+    document.title = 'fertig';
+  }, 50);
+} else document.title = 'fertig';
+</script>
+</body>
+</html>

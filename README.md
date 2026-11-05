@@ -6,6 +6,8 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 > **Status: early test version (0.1.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
+<p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
+
 ## Features
 
 - Side view with 8 generic outlines: caravan (rounded, angular, twin axle), motorhome (semi-integrated, alcove, integrated), camper van (high roof, pop-up roof)
@@ -15,6 +17,18 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 - Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
 - Sensors that are assigned but offline show "offline", unassigned parts are hidden
 - Visual editor, light and dark theme, phone and tablet
+
+## Screenshots
+
+Levelling: what to do first, spirit level and chock plan (light theme).
+
+<p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/leveling-light.png" alt="Levelling view: status not level, chock 3.5 cm under the right wheel, lower the nose 10.5 cm with the jockey wheel, spirit level and chock plan from above" width="640"></p>
+
+The 8 generic outlines, each with tanks, battery and solar.
+
+<p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/outlines.png" alt="Eight vehicle outlines: caravan rounded, angular and twin axle, motorhome semi-integrated, alcove and integrated, camper van with high roof and pop-up roof" width="860"></p>
+
+The images are rendered from the real card with sample data (`docs/shots.html`).
 
 ## Installation (HACS)
 
