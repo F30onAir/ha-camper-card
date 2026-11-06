@@ -1,4 +1,4 @@
-/*! Camper Card 0.1.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.1.1 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
@@ -349,7 +349,7 @@ function normalizeConfig(raw) {
 
 
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const EX = 2.5, MAXA = 7, BUB = 20;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
