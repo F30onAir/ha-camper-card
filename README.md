@@ -18,6 +18,89 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 - Sensors that are assigned but offline show "offline", unassigned parts are hidden
 - Visual editor, light and dark theme, phone and tablet
 
+## Sensors and switches
+
+The card is only the display. It has no integration of its own and talks to no device directly. It reads entities that already exist in Home Assistant, no matter how they get there: Zigbee, Bluetooth, ESPHome, MQTT, Victron, Shelly and so on. Everything is optional. Start with one or two sensors, parts without an entity are hidden.
+
+| Field | Entity | Value | Typical source |
+|---|---|---|---|
+| `battery` | sensor | % | state of charge from a BMS or battery monitor |
+| `battery_power` | sensor | W, positive = charging | BMS or shunt |
+| `solar` | sensor | W | solar charge controller |
+| `charger` | switch | on/off | smart plug or relay in front of the mains charger |
+| `charger_power` | sensor | W | power metering of that plug |
+| `fresh`, `grey` (motorhome, van) | sensor | % | tank level sensor (ultrasonic, pressure, probes) |
+| `gas` | sensor | % | gas bottle level sensor |
+| `gas_availability` | any | – | raw sensor behind a gas template, shows "offline" instead of 0 % |
+| `temp_inside`, `temp_fridge` | sensor | °C or °F | any temperature sensor |
+| `pump` | switch or light | on/off | water pump or taps, tap the card to switch |
+| `light_inside`, `light_outside` | switch or light | on/off | lights, tap the card to switch |
+| `pitch`, `roll` | sensor | ° (also %, rad, mrad) | tilt sensor, lengthwise and sideways |
+
+Number fields also take `input_number` and `number`, switch fields also `input_boolean`. With helpers you can try the card before any hardware is installed.
+
+**Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. The card shows solar, charger, both, or "unknown" if no source explains the charging.
+
+**Tested in a real caravan:** LiFePO4 battery with Bluetooth BMS via [BMS BLE](https://github.com/patman15/BMS_BLE-HA) (HACS), gas bottle via the built-in Mopeka integration, fresh water via a Zigbee ultrasonic tank sensor, taps via a Zigbee switch. Not tested yet: a real tilt sensor (levelling was checked with simulated values).
+
+<details>
+<summary>Tank or gas sensor reports mm or litres instead of %</summary>
+
+Create a template sensor (Settings → Devices & services → Helpers → Template → Sensor), unit `%`, and assign it in the card. Example for a gas sensor in mm, set `full` to the reading of a full bottle:
+
+```jinja
+{% set mm = states('sensor.gas_tank_level') | float(0) %}
+{% set full = 300 %}
+{{ [mm / full * 100, 100] | min | round(0) }}
+```
+
+Then set `gas_availability` to `sensor.gas_tank_level`, so the card shows "offline" instead of 0 % when the bottle sensor is out of range.
+
+</details>
+
+<details>
+<summary>Tilt sensor with ESPHome (example, not tested yet)</summary>
+
+An ESP32 with an MPU6050 board, mounted flat with the x axis in driving direction:
+
+```yaml
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+
+sensor:
+  - platform: mpu6050
+    address: 0x68
+    update_interval: 500ms
+    accel_x: { id: ax, internal: true }
+    accel_y: { id: ay, internal: true }
+    accel_z: { id: az, internal: true }
+  - platform: template
+    name: Tilt length
+    unit_of_measurement: "°"
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      return atan2(id(ax).state, sqrt(id(ay).state * id(ay).state + id(az).state * id(az).state)) * 180 / M_PI;
+    filters:
+      - sliding_window_moving_average: { window_size: 10, send_every: 1 }
+  - platform: template
+    name: Tilt side
+    unit_of_measurement: "°"
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      return atan2(id(ay).state, sqrt(id(ax).state * id(ax).state + id(az).state * id(az).state)) * 180 / M_PI;
+    filters:
+      - sliding_window_moving_average: { window_size: 10, send_every: 1 }
+```
+
+If a direction is reversed or the axes are swapped, fix it in the card editor (invert, swap axes), then press the zero-point button while the vehicle stands level.
+
+</details>
+
+*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, Zigbee-Tanksensor und Zigbee-Schalter.
+
 ## Screenshots
 
 Levelling: what to do first, spirit level and chock plan (light theme).
