@@ -182,7 +182,7 @@ MIT, see [LICENSE](LICENSE).
 
 ## Development
 
-No npm packages are needed. With Node.js 20 or newer:
+No npm packages are needed. With Node.js 22 or newer:
 
 ```bash
 npm run build   # writes dist/camper-card.js
