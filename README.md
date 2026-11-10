@@ -176,6 +176,10 @@ If you like the card, you can support development with a voluntary coffee:
 
 <a href="https://buymeacoffee.com/f30onair"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
 
+## License
+
+MIT, see [LICENSE](LICENSE).
+
 ## Development
 
 No npm packages are needed. With Node.js 20 or newer:
