@@ -1,15 +1,18 @@
 /* Konfiguration der Camper Card: Standardwerte und Prüfung. Ohne DOM, damit sie getestet werden kann. */
 import { V, GROUPS, DIMS } from './vehicles.js';
 
-/** Konfigurationsname der Entität und interner Schlüssel. gas_availability wird gesondert behandelt. */
+/** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
 export const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
-  fresh: 'fresh', grey: 'grey', gas: 'gas', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
+  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
   pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
 };
 export const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 export const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 export const VEHICLES = ['caravan', 'motorhome', 'van'];
+/** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
+export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside'];
+const MAX_NAME = 40;
 
 const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -30,9 +33,16 @@ export function normalizeConfig(raw) {
   let outline = raw.outline && V[raw.outline] && V[raw.outline].type === vehicle ? raw.outline : GROUPS[vehicle][0];
   const entities = {};
   const ent = raw.entities && typeof raw.entities === 'object' ? raw.entities : {};
-  for (const key of [...Object.keys(ENTITY_KEYS), 'gas_availability']) {
+  for (const key of [...Object.keys(ENTITY_KEYS), 'gas_availability', 'gas2_availability']) {
     if (typeof ent[key] === 'string' && ent[key].includes('.')) entities[key] = ent[key].trim();
   }
+  // Eigene Namen, intern nach Schlüssel der Karte. pump_name aus 0.1 gilt weiter, names.pump hat Vorrang.
+  const names = {};
+  const nm = raw.names && typeof raw.names === 'object' ? raw.names : {};
+  const txt = (x) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, MAX_NAME) : null);
+  for (const key of NAME_KEYS) { const n = txt(nm[key]); if (n) names[ENTITY_KEYS[key]] = n; }
+  const pumpName = txt(raw.pump_name);
+  if (pumpName && !names.pump) names.pump = pumpName;
   const lv = raw.leveling && typeof raw.leveling === 'object' ? raw.leveling : {};
   const dims = DIMS[outline];
   const track = cfgNum(lv.track, null), base = cfgNum(lv.base, null);
@@ -42,7 +52,8 @@ export function normalizeConfig(raw) {
     vehicle, outline,
     offline: raw.offline === 'hide' ? 'hide' : 'grey',
     language: raw.language === 'de' || raw.language === 'en' ? raw.language : 'auto',
-    pump_name: typeof raw.pump_name === 'string' && raw.pump_name.trim() ? raw.pump_name.trim() : null,
+    pump_name: pumpName,
+    names,
     charger_min_power: Math.max(0, cfgNum(raw.charger_min_power, 10)),
     charger_toggle: raw.charger_toggle === true,
     entities,

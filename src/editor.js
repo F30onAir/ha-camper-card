@@ -2,12 +2,14 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, GROUPS, DIMS, TYPE_NAME } from './vehicles.js';
 import { toDegrees, correctTilt } from './leveling.js';
-import { normalizeConfig } from './config.js';
+import { normalizeConfig, NAME_KEYS, ENTITY_KEYS } from './config.js';
 
-const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability',
+const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
   'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'pump_name', 'charger_min_power', 'charger_toggle'];
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle'];
+/* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
+const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
 const ONOFF = { entity: { domain: ['switch', 'light', 'input_boolean'] } };
 const empty = (v) => v === undefined || v === null || v === '';
@@ -18,6 +20,8 @@ export function flattenConfig(cfg) {
   for (const k of TOP_FIELDS) if (!empty(cfg[k])) d[k] = cfg[k];
   for (const k of ENT_FIELDS) if (cfg.entities && !empty(cfg.entities[k])) d[k] = cfg.entities[k];
   for (const k of LV_FIELDS) if (cfg.leveling && !empty(cfg.leveling[k])) d[k] = Array.isArray(cfg.leveling[k]) ? cfg.leveling[k].join(', ') : cfg.leveling[k];
+  for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
+  if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
   return d;
 }
 export function unflattenConfig(data, prev) {
@@ -29,6 +33,8 @@ export function unflattenConfig(data, prev) {
   if (out.vehicle && (!out.outline || !V[out.outline] || V[out.outline].type !== out.vehicle)) out.outline = GROUPS[out.vehicle][0];
   out.entities = ent;
   if (Object.keys(lv).length) out.leveling = lv;
+  const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
+  if (Object.keys(names).length) out.names = names;
   return out;
 }
 
@@ -104,13 +110,15 @@ export class CamperCardEditor extends EditorBase {
       const c = this._norm();
       return L(c.vehicle === 'caravan' ? (V[c.outline].axles === 2 ? 'ed_base_tandem' : 'ed_base_caravan') : 'ed_base_wheels');
     }
+    if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : L(ENTITY_KEYS[k]); }
     return s.title || L('ed_' + s.name);
   }
   _helper(s) {
     const L = this._L, c = this._norm();
     if (s.name === 'track') return `${L('ed_default_is')} ${DIMS[c.outline][0]} cm`;
     if (s.name === 'base') return `${L('ed_default_is')} ${DIMS[c.outline][1]} cm`;
-    if (s.name === 'gas_availability') return L('ed_gas_help');
+    if (s.name === 'gas_availability' || s.name === 'gas2_availability') return L('ed_gas_help');
+    if (s.name === NAME_FIELDS[0]) return L('ed_names_help');
     if (s.name === 'charger_toggle') return L('ed_charger_help');
     return undefined;
   }
@@ -137,10 +145,11 @@ export class CamperCardEditor extends EditorBase {
         { name: 'fresh', selector: NUMERIC },
         ...(c.vehicle === 'caravan' ? [] : [{ name: 'grey', selector: NUMERIC }]),
         { name: 'gas', selector: NUMERIC }, { name: 'gas_availability', selector: { entity: {} } },
+        { name: 'gas2', selector: NUMERIC }, { name: 'gas2_availability', selector: { entity: {} } },
       ]),
       g('g_climate', [{ name: 'temp_inside', selector: NUMERIC }, { name: 'temp_fridge', selector: NUMERIC }]),
       g('g_switches', [
-        { name: 'pump', selector: ONOFF }, { name: 'pump_name', selector: { text: {} } },
+        { name: 'pump', selector: ONOFF },
         { name: 'light_inside', selector: ONOFF }, { name: 'light_outside', selector: ONOFF },
       ]),
       g('g_level', [
@@ -150,6 +159,7 @@ export class CamperCardEditor extends EditorBase {
         { name: 'tolerance', selector: num(0, 2, 0.1, '°') },
         { name: 'invert_pitch', selector: { boolean: {} } }, { name: 'invert_roll', selector: { boolean: {} } }, { name: 'swap_axes', selector: { boolean: {} } },
       ]),
+      g('g_names', NAME_FIELDS.filter((f) => !(f === 'name_grey' && c.vehicle === 'caravan')).map((f) => ({ name: f, selector: { text: {} } }))),
     ];
   }
   _update() {

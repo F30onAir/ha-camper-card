@@ -4,14 +4,15 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 *Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
 
-> **Status: early test version (0.1.1).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+> **Status: early test version (0.2.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
 
 ## Features
 
-- Side view with 8 generic outlines: caravan (rounded, angular, twin axle), motorhome (semi-integrated, alcove, integrated), camper van (high roof, pop-up roof)
-- Fresh water, grey water (motorhome and van), gas, battery, solar, charger, temperatures
+- Side view with 9 outlines: caravan (rounded, angular, twin axle), motorhome (semi-integrated, alcove, integrated), camper van (high roof, pop-up roof, panel van of the Ducato / Boxer / Jumper type)
+- Fresh water, grey water (motorhome and van), one or two gas bottles, battery, solar, charger, temperatures
+- Rename every tile in your own language, for example "Färskvatten" or "Gas left"
 - Windows light up with the inside light, outside light, water pump or taps as a switch
 - Charge source: solar, charger, both or unknown, derived from your sensors
 - Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
@@ -32,6 +33,7 @@ The card is only the display. It has no integration of its own and talks to no d
 | `fresh`, `grey` (motorhome, van) | sensor | % | tank level sensor (ultrasonic, pressure, probes) |
 | `gas` | sensor | % | gas bottle level sensor |
 | `gas_availability` | any | – | raw sensor behind a gas template, shows "offline" instead of 0 % |
+| `gas2`, `gas2_availability` | sensor, any | % | second gas bottle, shown as "Gas 1" and "Gas 2" |
 | `temp_inside`, `temp_fridge` | sensor | °C or °F | any temperature sensor |
 | `pump` | switch or light | on/off | water pump or taps, tap the card to switch |
 | `light_inside`, `light_outside` | switch or light | on/off | lights, tap the card to switch |
@@ -39,9 +41,11 @@ The card is only the display. It has no integration of its own and talks to no d
 
 Number fields also take `input_number` and `number`, switch fields also `input_boolean`. With helpers you can try the card before any hardware is installed.
 
+**Tile names.** Every tile and switch can get your own label under `names:` (in the editor: "Tile names"), in any language. Empty means the default name. Status texts and the levelling instructions stay in English or German.
+
 **Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. The card shows solar, charger, both, or "unknown" if no source explains the charging.
 
-**Tested in a real caravan:** LiFePO4 battery with Bluetooth BMS via [BMS BLE](https://github.com/patman15/BMS_BLE-HA) (HACS), gas bottle via the built-in Mopeka integration, fresh water via a Zigbee ultrasonic tank sensor, taps via a Zigbee switch. Not tested yet: a real tilt sensor (levelling was checked with simulated values).
+**Tested in a real caravan:** LiFePO4 battery with Bluetooth BMS via [BMS BLE](https://github.com/patman15/BMS_BLE-HA) (HACS), gas bottle via the built-in Mopeka integration, fresh water via an E-Waterlevel Bluetooth sensor read by an ESP32 with [esphome-ewaterlevel](https://github.com/Fabian-Schmidt/esphome-ewaterlevel), taps via a Zigbee switch. Not tested yet: a real tilt sensor (levelling was checked with simulated values).
 
 <details>
 <summary>Tank or gas sensor reports mm or litres instead of %</summary>
@@ -99,7 +103,7 @@ If a direction is reversed or the axes are swapped, fix it in the card editor (i
 
 </details>
 
-*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, Zigbee-Tanksensor und Zigbee-Schalter.
+*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen, jede Kachel lässt sich unter `names:` selbst benennen. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
 
 ## Screenshots
 
@@ -107,23 +111,23 @@ Levelling: what to do first, spirit level and chock plan (light theme).
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/leveling-light.png" alt="Levelling view: status not level, chock 3.5 cm under the right wheel, lower the nose 10.5 cm with the jockey wheel, spirit level and chock plan from above" width="640"></p>
 
-The 8 generic outlines, each with tanks, battery and solar.
+The 9 outlines, each with tanks, battery and solar. All are self-drawn approximations without logos.
 
-<p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/outlines.png" alt="Eight vehicle outlines: caravan rounded, angular and twin axle, motorhome semi-integrated, alcove and integrated, camper van with high roof and pop-up roof" width="860"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/outlines.png" alt="Nine vehicle outlines: caravan rounded, angular and twin axle, motorhome semi-integrated, alcove and integrated, camper van with high roof, pop-up roof and as a Ducato-type panel van" width="860"></p>
 
 The images are rendered from the real card with sample data (`docs/shots.html`).
 
-## Installation (HACS)
+## Installation (HACS / Marketplace)
 
-The card is not in the HACS store yet. Add it as a custom repository:
+From Home Assistant 2026.11 HACS is built in as the **Marketplace**, the steps stay the same. The card is not in the default catalog yet. Add it as a custom repository:
 
-1. HACS → ⋮ (top right) → **Custom repositories**
+1. HACS or Marketplace → ⋮ (top right) → **Custom repositories**
 2. Repository: `https://github.com/F30onAir/ha-camper-card`, type: **Dashboard**
-3. Open **Camper Card** in HACS and download it
+3. Open **Camper Card** and download it
 4. Reload the browser (in the companion app: reset the frontend cache in the app settings)
 5. Edit a dashboard → **Add card** → **Camper Card**, then pick your entities in the editor
 
-*Deutsch:* HACS → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard** → **Camper Card** herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**.
+*Deutsch:* HACS bzw. ab Home Assistant 2026.11 Marketplace → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard** → **Camper Card** herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**.
 
 ## Example
 
@@ -131,7 +135,7 @@ The card is not in the HACS store yet. Add it as a custom repository:
 type: custom:camper-card
 name: Wohnwagen
 vehicle: caravan          # caravan | motorhome | van
-outline: caravan_round    # caravan_round, caravan_box, caravan_tandem, mh_semi, mh_alcove, mh_integrated, van_high, van_popup
+outline: caravan_round    # caravan_round, caravan_box, caravan_tandem, mh_semi, mh_alcove, mh_integrated, van_high, van_popup, van_ducato
 offline: grey             # grey | hide (assigned but offline)
 entities:
   battery: sensor.battery_soc
@@ -143,6 +147,7 @@ entities:
   grey: sensor.grey_water_percent          # motorhome and van only
   gas: sensor.gas_percent
   gas_availability: sensor.gas_raw_sensor  # shows "offline" instead of 0 % when this one is unavailable
+  gas2: sensor.gas_bottle_2_percent        # optional second bottle
   temp_inside: sensor.inside_temperature
   temp_fridge: sensor.fridge_temperature
   pump: switch.water_pump
@@ -150,6 +155,11 @@ entities:
   light_outside: light.awning
   pitch: sensor.tilt_length                # degrees (also %, rad, mrad)
   roll: sensor.tilt_side
+names:                    # optional, any language, empty = default
+  fresh: Färskvatten
+  gas: Gas left
+  gas2: Gas right
+  pump: Taps
 leveling:
   track: 215        # cm, wheel centre to wheel centre
   base: 430         # cm, caravan: axle to jockey wheel, motorhome/van: wheelbase

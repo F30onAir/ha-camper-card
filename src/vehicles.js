@@ -83,8 +83,27 @@ export const V={
   rail:'M240 152 L418 152',seams:'M118 104 L118 226',
   /* Aufstelldach: hinten angeschlagen, vorn hochgestellt */
   popup:{hx:150,hy:88,fx:540,fy:30,fabric:'M150 88 L540 90 L540 30 Z',shell:'M140 86 L548 24',win:{x:440,y:50,w:70,h:22}},
-  skylights:[],solar:{x:230,w:170,y:68,rot:-8.6},flow:'M315 63 L315 196',lamp:{x:470,y:94}}
+  skylights:[],solar:{x:230,w:170,y:68,rot:-8.6},flow:'M315 63 L315 196',lamp:{x:470,y:94}},
+ /* Kastenwagen auf Ducato/Boxer/Jumper-Basis (L3H2): 4,035 m Radstand, kurze Front, lange schräge Frontscheibe.
+    Selbst gezeichnete Annäherung nach dem Gesamteindruck, keine Konturen abgepaust, kein Logo, kein Dekor. */
+ van_ducato:{type:'van',name:{de:'Kastenwagen (Ducato-Typ)',en:'Panel van (Ducato type)'},vb:[97,2,699],roofY:60,
+  bottom:242,wheel:{xs:[237,600],r:32},pivot:418,ext:[140,656],flare:600,flareRear:237,
+  body:'M154 242 L646 244 C652 244 656 240 656 234 L656 212 C656 206 654 202 650 200 L640 194 C634 191 630 189 627 187 L541 82 C534 72 524 64 510 61 C504 60 498 60 490 60 L154 60 C146 60 140 66 140 74 L140 228 C140 236 146 242 154 242 Z',
+  cab:{win:'M546 114 L566 114 L608 178 L546 176 Z',seam:'M470 92 L470 242 M622 192 L618 222',
+   mirror:'M612 128 L626 126 L632 156 L622 158 L619 168 L613 168 L615 158 Z',
+   headPath:'M632 194 L650 201 L654 213 L637 209 Z',
+   bumper:'M624 226 L656 226 L656 238 C656 245 651 250 644 250 L624 250 Z',ind:{x:634,y:219}},
+  molding:'M140 222 L630 222 L630 232 L140 232 Z',
+  rearBumper:'M140 226 L172 226 L172 248 L154 248 C146 248 140 243 140 236 Z',
+  windows:[{x:164,y:116,w:90,h:50,r:8}],door:{x:358,y:90,w:110,h:152,r:4,win:{x:370,y:116,w:76,h:52,r:7},slide:true},
+  awning:{x:164,y:62,w:296,h:11},handles:[{x:478,y:180}],vents:[{x:268,y:140,w:36,h:14}],
+  rail:'M262 170 L358 170',seams:'M146 76 L146 216',
+  cut:[{x:148,y:172,w:48,h:66,r:8},{x:282,y:172,w:122,h:68,r:10}],
+  bat:{x:290,y:198,w:54,h:38},fresh:{x:350,y:190,w:50,h:46},grey:{x:290,y:248,w:110,h:20,under:true},gas:{x:158,y:180,w:28,h:54},
+  inlet:{x:212,y:188},cable:'M212 195 C211 228 202 262 194 286',cflow:'M219 188 L317 188 L317 198',
+  skylights:[{x:152,w:30},{x:392,w:40}],solar:{x:196,w:180,y:60},flow:'M317 60 L317 198',lamp:{x:412,y:80},
+  tail:{x:140,y:142,w:6,h:50}}
 };
-export const GROUPS={caravan:['caravan_round','caravan_box','caravan_tandem'],motorhome:['mh_semi','mh_alcove','mh_integrated'],van:['van_high','van_popup']};
+export const GROUPS={caravan:['caravan_round','caravan_box','caravan_tandem'],motorhome:['mh_semi','mh_alcove','mh_integrated'],van:['van_high','van_popup','van_ducato']};
 export const TYPE_NAME={caravan:{de:'Wohnwagen',en:'Caravan'},motorhome:{de:'Wohnmobil',en:'Motorhome'},van:{de:'Camper Van',en:'Camper van'}};
-export const DIMS={caravan_round:[215,430],caravan_box:[215,430],caravan_tandem:[215,480],mh_semi:[180,400],mh_alcove:[180,400],mh_integrated:[185,420],van_high:[180,404],van_popup:[180,404]};
+export const DIMS={caravan_round:[215,430],caravan_box:[215,430],caravan_tandem:[215,480],mh_semi:[180,400],mh_alcove:[180,400],mh_integrated:[185,420],van_high:[180,404],van_popup:[180,404],van_ducato:[180,404]};

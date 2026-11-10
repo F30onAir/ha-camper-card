@@ -1,4 +1,4 @@
-/*! Camper Card 0.1.1 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.2.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
@@ -30,6 +30,8 @@ const STRINGS = {
     ed_battery: 'Batterie: Ladestand', ed_battery_power: 'Batterie: Leistung (BMS)', ed_solar: 'Solarleistung', ed_charger: 'Ladegerät: Schalter',
     ed_charger_power: 'Ladegerät: Leistung (Zwischenstecker)', ed_charger_min_power: 'Ladegerät lädt ab (W)', ed_charger_toggle: 'Ladegerät in der Karte schaltbar',
     ed_fresh: 'Frischwasser', ed_grey: 'Grauwasser', ed_gas: 'Gas', ed_gas_availability: 'Gas: Verfügbarkeit prüfen über',
+    ed_gas2: 'Gas: zweite Flasche', ed_gas2_availability: 'Gas 2: Verfügbarkeit prüfen über',
+    ed_g_names: 'Namen der Kacheln', ed_names_help: 'Eigene Beschriftung, in jeder Sprache. Leer lassen für den Standardnamen.',
     ed_temp_inside: 'Temperatur innen', ed_temp_fridge: 'Temperatur Kühlschrank', ed_pump: 'Wasserpumpe oder Wasserhähne', ed_pump_name: 'Name für den Wasserschalter',
     ed_light_inside: 'Licht innen', ed_light_outside: 'Licht außen', ed_pitch: 'Neigung längs', ed_roll: 'Neigung seitlich',
     ed_track: 'Spurbreite (cm)', ed_base_caravan: 'Abstand Achse bis Bugrad (cm)', ed_base_tandem: 'Achsmitte bis Bugrad (cm)', ed_base_wheels: 'Radstand (cm)',
@@ -66,6 +68,8 @@ const STRINGS = {
     ed_battery: 'Battery: state of charge', ed_battery_power: 'Battery: power (BMS)', ed_solar: 'Solar power', ed_charger: 'Charger: switch',
     ed_charger_power: 'Charger: power (smart plug)', ed_charger_min_power: 'Charger counts as charging from (W)', ed_charger_toggle: 'Charger can be switched in the card',
     ed_fresh: 'Fresh water', ed_grey: 'Grey water', ed_gas: 'Gas', ed_gas_availability: 'Gas: check availability via',
+    ed_gas2: 'Gas: second bottle', ed_gas2_availability: 'Gas 2: check availability via',
+    ed_g_names: 'Tile names', ed_names_help: 'Your own label, in any language. Leave empty for the default name.',
     ed_temp_inside: 'Inside temperature', ed_temp_fridge: 'Fridge temperature', ed_pump: 'Water pump or taps', ed_pump_name: 'Name of the water switch',
     ed_light_inside: 'Inside light', ed_light_outside: 'Outside light', ed_pitch: 'Tilt, length', ed_roll: 'Tilt, side',
     ed_track: 'Track width (cm)', ed_base_caravan: 'Axle to jockey wheel (cm)', ed_base_tandem: 'Axle centre to jockey wheel (cm)', ed_base_wheels: 'Wheelbase (cm)',
@@ -174,11 +178,30 @@ const V={
   rail:'M240 152 L418 152',seams:'M118 104 L118 226',
   /* Aufstelldach: hinten angeschlagen, vorn hochgestellt */
   popup:{hx:150,hy:88,fx:540,fy:30,fabric:'M150 88 L540 90 L540 30 Z',shell:'M140 86 L548 24',win:{x:440,y:50,w:70,h:22}},
-  skylights:[],solar:{x:230,w:170,y:68,rot:-8.6},flow:'M315 63 L315 196',lamp:{x:470,y:94}}
+  skylights:[],solar:{x:230,w:170,y:68,rot:-8.6},flow:'M315 63 L315 196',lamp:{x:470,y:94}},
+ /* Kastenwagen auf Ducato/Boxer/Jumper-Basis (L3H2): 4,035 m Radstand, kurze Front, lange schräge Frontscheibe.
+    Selbst gezeichnete Annäherung nach dem Gesamteindruck, keine Konturen abgepaust, kein Logo, kein Dekor. */
+ van_ducato:{type:'van',name:{de:'Kastenwagen (Ducato-Typ)',en:'Panel van (Ducato type)'},vb:[97,2,699],roofY:60,
+  bottom:242,wheel:{xs:[237,600],r:32},pivot:418,ext:[140,656],flare:600,flareRear:237,
+  body:'M154 242 L646 244 C652 244 656 240 656 234 L656 212 C656 206 654 202 650 200 L640 194 C634 191 630 189 627 187 L541 82 C534 72 524 64 510 61 C504 60 498 60 490 60 L154 60 C146 60 140 66 140 74 L140 228 C140 236 146 242 154 242 Z',
+  cab:{win:'M546 114 L566 114 L608 178 L546 176 Z',seam:'M470 92 L470 242 M622 192 L618 222',
+   mirror:'M612 128 L626 126 L632 156 L622 158 L619 168 L613 168 L615 158 Z',
+   headPath:'M632 194 L650 201 L654 213 L637 209 Z',
+   bumper:'M624 226 L656 226 L656 238 C656 245 651 250 644 250 L624 250 Z',ind:{x:634,y:219}},
+  molding:'M140 222 L630 222 L630 232 L140 232 Z',
+  rearBumper:'M140 226 L172 226 L172 248 L154 248 C146 248 140 243 140 236 Z',
+  windows:[{x:164,y:116,w:90,h:50,r:8}],door:{x:358,y:90,w:110,h:152,r:4,win:{x:370,y:116,w:76,h:52,r:7},slide:true},
+  awning:{x:164,y:62,w:296,h:11},handles:[{x:478,y:180}],vents:[{x:268,y:140,w:36,h:14}],
+  rail:'M262 170 L358 170',seams:'M146 76 L146 216',
+  cut:[{x:148,y:172,w:48,h:66,r:8},{x:282,y:172,w:122,h:68,r:10}],
+  bat:{x:290,y:198,w:54,h:38},fresh:{x:350,y:190,w:50,h:46},grey:{x:290,y:248,w:110,h:20,under:true},gas:{x:158,y:180,w:28,h:54},
+  inlet:{x:212,y:188},cable:'M212 195 C211 228 202 262 194 286',cflow:'M219 188 L317 188 L317 198',
+  skylights:[{x:152,w:30},{x:392,w:40}],solar:{x:196,w:180,y:60},flow:'M317 60 L317 198',lamp:{x:412,y:80},
+  tail:{x:140,y:142,w:6,h:50}}
 };
-const GROUPS={caravan:['caravan_round','caravan_box','caravan_tandem'],motorhome:['mh_semi','mh_alcove','mh_integrated'],van:['van_high','van_popup']};
+const GROUPS={caravan:['caravan_round','caravan_box','caravan_tandem'],motorhome:['mh_semi','mh_alcove','mh_integrated'],van:['van_high','van_popup','van_ducato']};
 const TYPE_NAME={caravan:{de:'Wohnwagen',en:'Caravan'},motorhome:{de:'Wohnmobil',en:'Motorhome'},van:{de:'Camper Van',en:'Camper van'}};
-const DIMS={caravan_round:[215,430],caravan_box:[215,430],caravan_tandem:[215,480],mh_semi:[180,400],mh_alcove:[180,400],mh_integrated:[185,420],van_high:[180,404],van_popup:[180,404]};
+const DIMS={caravan_round:[215,430],caravan_box:[215,430],caravan_tandem:[215,480],mh_semi:[180,400],mh_alcove:[180,400],mh_integrated:[185,420],van_high:[180,404],van_popup:[180,404],van_ducato:[180,404]};
 
 // ---- leveling.js ----
 /* Keilrechnung der Camper Card. Reine Mathematik, ohne Home Assistant und ohne DOM, damit sie getestet werden kann. */
@@ -281,15 +304,18 @@ function sourceKey(src) {
 // ---- config.js ----
 /* Konfiguration der Camper Card: Standardwerte und Prüfung. Ohne DOM, damit sie getestet werden kann. */
 
-/** Konfigurationsname der Entität und interner Schlüssel. gas_availability wird gesondert behandelt. */
+/** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
 const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
-  fresh: 'fresh', grey: 'grey', gas: 'gas', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
+  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
   pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
 };
 const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 const VEHICLES = ['caravan', 'motorhome', 'van'];
+/** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
+const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside'];
+const MAX_NAME = 40;
 
 const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -310,9 +336,16 @@ function normalizeConfig(raw) {
   let outline = raw.outline && V[raw.outline] && V[raw.outline].type === vehicle ? raw.outline : GROUPS[vehicle][0];
   const entities = {};
   const ent = raw.entities && typeof raw.entities === 'object' ? raw.entities : {};
-  for (const key of [...Object.keys(ENTITY_KEYS), 'gas_availability']) {
+  for (const key of [...Object.keys(ENTITY_KEYS), 'gas_availability', 'gas2_availability']) {
     if (typeof ent[key] === 'string' && ent[key].includes('.')) entities[key] = ent[key].trim();
   }
+  // Eigene Namen, intern nach Schlüssel der Karte. pump_name aus 0.1 gilt weiter, names.pump hat Vorrang.
+  const names = {};
+  const nm = raw.names && typeof raw.names === 'object' ? raw.names : {};
+  const txt = (x) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, MAX_NAME) : null);
+  for (const key of NAME_KEYS) { const n = txt(nm[key]); if (n) names[ENTITY_KEYS[key]] = n; }
+  const pumpName = txt(raw.pump_name);
+  if (pumpName && !names.pump) names.pump = pumpName;
   const lv = raw.leveling && typeof raw.leveling === 'object' ? raw.leveling : {};
   const dims = DIMS[outline];
   const track = cfgNum(lv.track, null), base = cfgNum(lv.base, null);
@@ -322,7 +355,8 @@ function normalizeConfig(raw) {
     vehicle, outline,
     offline: raw.offline === 'hide' ? 'hide' : 'grey',
     language: raw.language === 'de' || raw.language === 'en' ? raw.language : 'auto',
-    pump_name: typeof raw.pump_name === 'string' && raw.pump_name.trim() ? raw.pump_name.trim() : null,
+    pump_name: pumpName,
+    names,
     charger_min_power: Math.max(0, cfgNum(raw.charger_min_power, 10)),
     charger_toggle: raw.charger_toggle === true,
     entities,
@@ -349,7 +383,7 @@ function normalizeConfig(raw) {
 
 
 
-const VERSION = "0.1.1";
+const VERSION = "0.2.0";
 const EX = 2.5, MAXA = 7, BUB = 20;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -368,6 +402,17 @@ const visA = () => clamp(-C.anim.p * EX, -MAXA, MAXA);
 const miniP = () => clamp(-C.anim.p * EX, -14, 14);
 const miniR = () => clamp(-C.anim.r * EX, -14, 14);
 const isOff = (s) => !s || s.state === 'unavailable' || s.state === 'unknown';
+/* Beschriftung einer Kachel oder eines Schalters: eigener Name, sonst Standardtext. Bei zwei Gasflaschen „Gas 1“ und „Gas 2“. */
+const twoGas = () => !!(C.cfg.entities.gas && C.cfg.entities.gas2);
+function nameOf(k, def) {
+  const own = C.cfg.names && C.cfg.names[k];
+  if (own) return esc(own);
+  if (k === 'gas2') return `${t('gas')} 2`;
+  if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
+  return def !== undefined ? def : t(k);
+}
+/* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
+const shortOf = (k, def) => { const own = C.cfg.names && C.cfg.names[k]; return own ? (own.length <= 10 ? esc(own) : '') : def; };
 
 /** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
@@ -382,8 +427,10 @@ function readStates(hass, cfg) {
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
     out.st[k] = 'ok'; out.v[k] = n; out.unit[k] = s.attributes && s.attributes.unit_of_measurement;
   }
-  const ga = cfg.entities.gas_availability;
-  if (ga && out.st.gas === 'ok' && isOff(hass.states[ga])) out.st.gas = 'off';
+  for (const [k, ak] of [['gas', 'gas_availability'], ['gas2', 'gas2_availability']]) {
+    const ga = cfg.entities[ak];
+    if (ga && out.st[k] === 'ok' && isOff(hass.states[ga])) out.st[k] = 'off';
+  }
   return out;
 }
 
@@ -424,6 +471,15 @@ function doorEl(D, on, i) {
 function hatchEl(h) {
   return rr(h.x, h.y, h.w, h.h, h.r, 'fill="none" stroke="var(--body-line)" stroke-width="1.1"')
     + (h.lock ? rr(h.x + h.w - 14, h.y + h.h / 2 - 3, 8, 6, 2, 'fill="var(--frame)" opacity=".7"') : rr(h.x + h.w / 2 - 4, h.y + 4, 8, 4, 2, 'fill="var(--frame)" opacity=".6"'));
+}
+/* Lüftungsgitter (zum Beispiel Kühlschrank) und Markisenkassette an der Dachkante */
+function ventEl(g) {
+  let l = ''; for (let y = g.y + 4; y < g.y + g.h - 2; y += 4) l += `<line x1="${g.x + 4}" y1="${y}" x2="${g.x + g.w - 4}" y2="${y}"/>`;
+  return `${rr(g.x, g.y, g.w, g.h, 3, 'fill="var(--plastic)"')}<g stroke="var(--body-line)" stroke-width="1.2" opacity=".8">${l}</g>`;
+}
+function awningEl(A) {
+  return `${rr(A.x, A.y, A.w, A.h, A.h / 2, 'fill="var(--metal)" stroke="var(--body-line)" stroke-width="1.1"')}
+    ${rr(A.x + 6, A.y + 2.5, A.w - 12, 2, 1, 'fill="#fff" opacity=".35"')}${rr(A.x + A.w - 8, A.y - 1, 8, A.h + 2, 3, 'fill="var(--plastic)"')}`;
 }
 function skylightEl(k, y) {
   return `<path d="M${k.x} ${y + 1} Q${k.x + 2} ${y - 7} ${k.x + 9} ${y - 7} L${k.x + k.w - 9} ${y - 7} Q${k.x + k.w - 2} ${y - 7} ${k.x + k.w} ${y + 1} Z" fill="var(--cut-a)" stroke="var(--body-line)" stroke-width="1.2"/>
@@ -477,23 +533,23 @@ function tankEl(id, b, color, p, state, shortName, warn) {
     : rr(b.x + b.w * 0.7, b.y - 5, 12, 6, 2, 'fill="var(--tank-line)"');
   const line = warn ? 'var(--c-warn)' : 'var(--tank-line)';
   const label = state === 'off' ? `<text class="pct${b.under ? ' not-small' : ''}" x="${cx}" y="${cy}" style="font-weight:500">${t('offline')}</text>`
-    : `<text class="pct not-small" x="${cx}" y="${cy}">${b.w >= 76 ? shortName + ' ' : ''}${nf(p)} %</text>${b.under ? '' : `<text class="pct only-small" x="${cx}" y="${cy}">${nf(p)} %</text>`}`;
+    : `<text class="pct not-small" x="${cx}" y="${cy}">${b.w >= 76 && shortName ? shortName + ' ' : ''}${nf(p)} %</text>${b.under ? '' : `<text class="pct only-small" x="${cx}" y="${cy}">${nf(p)} %</text>`}`;
   return `<clipPath id="ct${id}">${rr(b.x, b.y, b.w, b.h, r)}</clipPath>${b.under ? '' : fit}${rr(b.x, b.y, b.w, b.h, r, 'fill="var(--tank)"')}${inner}
     ${rr(b.x + 5, b.y + 4, Math.max(5, b.w * 0.07), b.h - 8, 2.5, 'fill="#fff" opacity=".28"')}${b.under ? fit : ''}
     ${rr(b.x, b.y, b.w, b.h, r, `fill="none" stroke="${line}" stroke-width="${warn ? 2.2 : 1.3}"`)}${label}`;
 }
-function gasEl(b, p, state, warn) {
+function gasEl(id, b, p, state, warn) {
   const x = b.x, y = b.y, w = b.w, h = b.h, top = y + 13, bot = y + h - 5, cx = x + w / 2, cyb = (top + bot) / 2, a = visA();
   const body = `M${x} ${top + 9} Q${x} ${top} ${x + 9} ${top} L${x + w - 9} ${top} Q${x + w} ${top} ${x + w} ${top + 9} L${x + w} ${bot - 3} Q${x + w} ${bot} ${x + w - 3} ${bot} L${x + 3} ${bot} Q${x} ${bot} ${x} ${bot - 3} Z`;
   let inner = '';
   if (state === 'ok' && p > 0) {
     const ly = top + (bot - top) * (1 - p / 100);
-    inner = `<g clip-path="url(#ctGas)"><g class="counter" data-cx="${cx}" data-cy="${cyb}" transform="rotate(${-a} ${cx} ${cyb})">${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="var(--c-gas)"')}${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="url(#gLiquid)"')}</g></g>`;
+    inner = `<g clip-path="url(#ctGas${id})"><g class="counter" data-cx="${cx}" data-cy="${cyb}" transform="rotate(${-a} ${cx} ${cyb})">${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="var(--c-gas)"')}${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="url(#gLiquid)"')}</g></g>`;
   }
-  if (state === 'off') inner = `<g clip-path="url(#ctGas)">${rr(x, top, w, bot - top, 0, 'fill="url(#pHatch)"')}</g>`;
+  if (state === 'off') inner = `<g clip-path="url(#ctGas${id})">${rr(x, top, w, bot - top, 0, 'fill="url(#pHatch)"')}</g>`;
   const line = warn ? 'var(--c-warn)' : 'var(--tank-line)';
   const txt = state === 'ok' ? `<text class="pct not-small" x="${cx}" y="${cyb + 2}">${nf(p)}</text>` : '';
-  return `<clipPath id="ctGas"><path d="${body}"/></clipPath>
+  return `<clipPath id="ctGas${id}"><path d="${body}"/></clipPath>
     <path d="M${x + 5} ${top} L${x + 5} ${y + 5} Q${x + 5} ${y + 2} ${x + 8} ${y + 2} L${x + w - 8} ${y + 2} Q${x + w - 5} ${y + 2} ${x + w - 5} ${y + 5} L${x + w - 5} ${top}" fill="none" stroke="var(--metal)" stroke-width="2.4"/>
     ${rr(cx - 3, y + 5, 6, top - y - 4, 1.5, 'fill="var(--plastic)"')}<path d="${body}" fill="var(--tank)"/>${inner}
     ${rr(x + 4, top + 5, 4, bot - top - 10, 2, 'fill="#fff" opacity=".28"')}<path d="${body}" fill="none" stroke="${line}" stroke-width="${warn ? 2.2 : 1.3}"/>
@@ -538,7 +594,7 @@ function inletEl(d, active) {
     <circle cx="${x}" cy="${y}" r="4.5" fill="${active ? 'var(--c-grid)' : 'var(--metal)'}"/>`;
 }
 function vehicleEl(d) {
-  const fresh = st('fresh'), grey = st('grey'), gas = st('gas'), bat = st('battery'), sol = st('solar');
+  const fresh = st('fresh'), grey = st('grey'), bat = st('battery'), sol = st('solar');
   const liOn = st('lightIn') === 'ok' && val('lightIn'), loOn = st('lightOut') === 'ok' && val('lightOut');
   const W = d.wheel, cy = 286 - W.r, src = sources();
   let s = `<ellipse cx="${(d.ext[0] + d.ext[1]) / 2}" cy="287" rx="${(d.ext[1] - d.ext[0]) / 2 + 8}" ry="6" fill="#000" opacity=".25" filter="url(#fSoft)"/>`;
@@ -556,6 +612,9 @@ function vehicleEl(d) {
   if (d.rail) s += `<path d="${d.rail}" fill="none" stroke="var(--body-line)" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>`;
   if (d.seams) s += `<path d="${d.seams}" fill="none" stroke="var(--body-line)" stroke-width="1.1" opacity=".75"/>`;
   (d.hatches || []).forEach((h) => { s += hatchEl(h); });
+  (d.vents || []).forEach((g) => { s += ventEl(g); });
+  (d.handles || []).forEach((g) => { s += rr(g.x, g.y, 16, 4, 2, 'fill="var(--frame)" opacity=".8"'); });
+  if (d.awning) s += awningEl(d.awning);
   if (d.filler) s += `<circle cx="${d.filler.x}" cy="${d.filler.y}" r="6.5" fill="var(--body-shade)" stroke="var(--body-line)"/><circle cx="${d.filler.x}" cy="${d.filler.y}" r="3" fill="var(--c-water)" opacity=".75"/>`;
   if (d.frontWin) s += `<path d="${d.frontWin}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
   let i = 0; d.windows.forEach((w) => { s += windowEl(w, liOn, i++); });
@@ -581,9 +640,13 @@ function vehicleEl(d) {
   }
   (d.cut || []).forEach((c, j) => { s += cutEl(c, j); });
   (d.wheelhouse || []).forEach((w) => { const yb = w.y + w.h; s += `<path d="M${w.x} ${yb} L${w.x} ${yb - 14} Q${w.x} ${w.y} ${w.x + w.w / 2} ${w.y} Q${w.x + w.w} ${w.y} ${w.x + w.w} ${yb - 14} L${w.x + w.w} ${yb} Z" fill="var(--cut-line)" opacity=".5"/>`; });
-  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, t('shortFresh'), fresh === 'ok' && val('fresh') <= 10);
-  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, t('shortGrey'), grey === 'ok' && val('grey') >= 85);
-  if (gas !== 'none') s += gasEl(d.gas, gas === 'ok' ? pct('gas') : 0, gas, gas === 'ok' && val('gas') <= 15);
+  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && val('fresh') <= 10);
+  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && val('grey') >= 85);
+  // Gas: eine Flasche an ihrem Platz, zwei schmalere nebeneinander im selben Fach.
+  const bottles = ['gas', 'gas2'].filter((k) => st(k) !== 'none');
+  const gcx = d.gas.x + d.gas.w / 2, gw = 19;
+  const gbox = bottles.length === 2 ? [{ ...d.gas, x: gcx - gw - 1.5, w: gw }, { ...d.gas, x: gcx + 1.5, w: gw }] : [d.gas];
+  bottles.forEach((k, j) => { const g = st(k); s += gasEl(j + 1, gbox[j], g === 'ok' ? pct(k) : 0, g, g === 'ok' && val(k) <= 15); });
   if (src.charger !== 'none') s += inletEl(d, src.chargerActive);
   if (bat !== 'none') s += batEl(d.bat, bat === 'ok' ? pct('battery') : 0, bat, src.batCharging);
   if (sol !== 'none') s += solarEl(d, sol, sol === 'ok' ? val('solar') : 0);
@@ -592,7 +655,9 @@ function vehicleEl(d) {
     if (src.chargerActive) s += `<path class="flow c" data-flow="charger" d="${d.cflow}"/>`;
   }
   W.xs.forEach((x) => { s += wheelEl(x, cy, W.r); });
-  if (d.flare) s += `<path d="M${d.flare - W.r - 8} ${cy + 1} A${W.r + 8} ${W.r + 8} 0 0 1 ${d.flare + W.r + 8} ${cy + 1}" fill="none" stroke="var(--plastic)" stroke-width="6" stroke-linecap="round"/>`;
+  for (const fx of [d.flare, d.flareRear]) {
+    if (fx) s += `<path d="M${fx - W.r - 8} ${cy + 1} A${W.r + 8} ${W.r + 8} 0 0 1 ${fx + W.r + 8} ${cy + 1}" fill="none" stroke="var(--plastic)" stroke-width="6" stroke-linecap="round"/>`;
+  }
   return s;
 }
 function sceneSVG(hasTilt) {
@@ -653,37 +718,39 @@ const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v));
 function tilesHTML() {
   const out = [];
   const b = st('battery'), p = st('power'), src = sources(), sTxt = srcText(src);
-  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', t('battery')));
+  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', nameOf('battery')));
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
     const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
-    out.push(tile('battery', 'battery', batColor(val('battery')), t('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
-  } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', t('power'), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
+  } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   const so = st('solar');
-  if (so === 'off') out.push(offTile('solar', 'sun', t('solar')));
-  else if (so === 'ok') out.push(tile('solar', 'sun', 'var(--c-sun)', t('solar'), nf(val('solar')), unitOf('solar', 'W')));
-  if (src.charger === 'off') out.push(offTile('charger', 'plug', t('charger')));
+  if (so === 'off') out.push(offTile('solar', 'sun', nameOf('solar')));
+  else if (so === 'ok') out.push(tile('solar', 'sun', 'var(--c-sun)', nameOf('solar'), nf(val('solar')), unitOf('solar', 'W')));
+  if (src.charger === 'off') out.push(offTile('charger', 'plug', nameOf('charger')));
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
     const v = cpOk ? nf(val('chargerPower')) : (val('charger') ? t('on') : t('off'));
     const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
-    out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', t('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
+    out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
   const f = st('fresh');
-  if (f === 'off') out.push(offTile('fresh', 'drop', t('fresh')));
-  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, t('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
+  if (f === 'off') out.push(offTile('fresh', 'drop', nameOf('fresh')));
+  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
   const g = st('grey');
-  if (g === 'off') out.push(offTile('grey', 'grey', t('grey')));
-  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, t('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
-  const ga = st('gas');
-  if (ga === 'off') out.push(offTile('gas', 'gas', t('gas')));
-  else if (ga === 'ok') { const c = val('gas') <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile('gas', 'gas', c, t('gas'), nf(val('gas')), '%', barOf(val('gas'), c))); }
+  if (g === 'off') out.push(offTile('grey', 'grey', nameOf('grey')));
+  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
+  for (const k of ['gas', 'gas2']) {
+    const ga = st(k);
+    if (ga === 'off') out.push(offTile(k, 'gas', nameOf(k)));
+    else if (ga === 'ok') { const c = val(k) <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile(k, 'gas', c, nameOf(k), nf(val(k)), '%', barOf(val(k), c))); }
+  }
   const ti = st('tempIn');
-  if (ti === 'off') out.push(offTile('tempIn', 'temp', t('tempIn')));
-  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', t('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
+  if (ti === 'off') out.push(offTile('tempIn', 'temp', nameOf('tempIn')));
+  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
   const tf = st('tempFridge');
-  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', t('tempFridge')));
-  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', t('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
+  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', nameOf('tempFridge')));
+  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', nameOf('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
   return out;
 }
 function actsHTML() {
@@ -694,7 +761,7 @@ function actsHTML() {
     const on = s === 'ok' && val(k);
     let sub = s === 'off' ? t('offline') : (on ? t('on') : t('off')), cls = '';
     if (k === 'pump' && s === 'ok' && st('fresh') === 'ok' && val('fresh') <= 5) { sub = t('tankLow'); cls = 'warn'; }
-    const label = k === 'pump' && C.cfg.pump_name ? esc(C.cfg.pump_name) : t(k);
+    const label = nameOf(k);
     return `<button class="act ${on ? 'on' : ''} ${s === 'off' ? 'dis' : ''}" style="--c:${c}" data-a="toggle" data-k="${k}" data-fid="act-${k}" ${s === 'off' ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ic(icon, 17)}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
   }).join('');
 }
@@ -1058,10 +1125,12 @@ const CARD_VERSION = VERSION;
 
 
 
-const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability',
+const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
   'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'pump_name', 'charger_min_power', 'charger_toggle'];
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle'];
+/* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
+const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
 const ONOFF = { entity: { domain: ['switch', 'light', 'input_boolean'] } };
 const empty = (v) => v === undefined || v === null || v === '';
@@ -1072,6 +1141,8 @@ function flattenConfig(cfg) {
   for (const k of TOP_FIELDS) if (!empty(cfg[k])) d[k] = cfg[k];
   for (const k of ENT_FIELDS) if (cfg.entities && !empty(cfg.entities[k])) d[k] = cfg.entities[k];
   for (const k of LV_FIELDS) if (cfg.leveling && !empty(cfg.leveling[k])) d[k] = Array.isArray(cfg.leveling[k]) ? cfg.leveling[k].join(', ') : cfg.leveling[k];
+  for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
+  if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
   return d;
 }
 function unflattenConfig(data, prev) {
@@ -1083,6 +1154,8 @@ function unflattenConfig(data, prev) {
   if (out.vehicle && (!out.outline || !V[out.outline] || V[out.outline].type !== out.vehicle)) out.outline = GROUPS[out.vehicle][0];
   out.entities = ent;
   if (Object.keys(lv).length) out.leveling = lv;
+  const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
+  if (Object.keys(names).length) out.names = names;
   return out;
 }
 
@@ -1158,13 +1231,15 @@ class CamperCardEditor extends EditorBase {
       const c = this._norm();
       return L(c.vehicle === 'caravan' ? (V[c.outline].axles === 2 ? 'ed_base_tandem' : 'ed_base_caravan') : 'ed_base_wheels');
     }
+    if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : L(ENTITY_KEYS[k]); }
     return s.title || L('ed_' + s.name);
   }
   _helper(s) {
     const L = this._L, c = this._norm();
     if (s.name === 'track') return `${L('ed_default_is')} ${DIMS[c.outline][0]} cm`;
     if (s.name === 'base') return `${L('ed_default_is')} ${DIMS[c.outline][1]} cm`;
-    if (s.name === 'gas_availability') return L('ed_gas_help');
+    if (s.name === 'gas_availability' || s.name === 'gas2_availability') return L('ed_gas_help');
+    if (s.name === NAME_FIELDS[0]) return L('ed_names_help');
     if (s.name === 'charger_toggle') return L('ed_charger_help');
     return undefined;
   }
@@ -1191,10 +1266,11 @@ class CamperCardEditor extends EditorBase {
         { name: 'fresh', selector: NUMERIC },
         ...(c.vehicle === 'caravan' ? [] : [{ name: 'grey', selector: NUMERIC }]),
         { name: 'gas', selector: NUMERIC }, { name: 'gas_availability', selector: { entity: {} } },
+        { name: 'gas2', selector: NUMERIC }, { name: 'gas2_availability', selector: { entity: {} } },
       ]),
       g('g_climate', [{ name: 'temp_inside', selector: NUMERIC }, { name: 'temp_fridge', selector: NUMERIC }]),
       g('g_switches', [
-        { name: 'pump', selector: ONOFF }, { name: 'pump_name', selector: { text: {} } },
+        { name: 'pump', selector: ONOFF },
         { name: 'light_inside', selector: ONOFF }, { name: 'light_outside', selector: ONOFF },
       ]),
       g('g_level', [
@@ -1204,6 +1280,7 @@ class CamperCardEditor extends EditorBase {
         { name: 'tolerance', selector: num(0, 2, 0.1, '°') },
         { name: 'invert_pitch', selector: { boolean: {} } }, { name: 'invert_roll', selector: { boolean: {} } }, { name: 'swap_axes', selector: { boolean: {} } },
       ]),
+      g('g_names', NAME_FIELDS.filter((f) => !(f === 'name_grey' && c.vehicle === 'caravan')).map((f) => ({ name: f, selector: { text: {} } }))),
     ];
   }
   _update() {

@@ -1,6 +1,6 @@
 {
   "name": "ha-camper-card",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Home Assistant dashboard card for caravans, motorhomes and camper vans: side view with tanks, battery and solar, plus levelling with chock heights.",
   "type": "module",

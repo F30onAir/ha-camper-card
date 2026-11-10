@@ -57,7 +57,7 @@ if (shot === 'outlines') {
   root.className = 'grid';
   const OUT = [['caravan', 'caravan_round', 'Wohnwagen abgerundet'], ['caravan', 'caravan_box', 'Wohnwagen kantig'], ['caravan', 'caravan_tandem', 'Wohnwagen Tandemachse'],
     ['motorhome', 'mh_semi', 'Wohnmobil teilintegriert'], ['motorhome', 'mh_alcove', 'Wohnmobil Alkoven'], ['motorhome', 'mh_integrated', 'Wohnmobil integriert'],
-    ['van', 'van_high', 'Camper Van Hochdach'], ['van', 'van_popup', 'Camper Van Aufstelldach']];
+    ['van', 'van_high', 'Camper Van Hochdach'], ['van', 'van_popup', 'Camper Van Aufstelldach'], ['van', 'van_ducato', 'Kastenwagen (Ducato-Typ)']];
   const ents = { battery: 'sensor.battery_soc', battery_power: 'sensor.battery_power', solar: 'sensor.solar_power', fresh: 'sensor.fresh_water',
     grey: 'sensor.grey_water', gas: 'sensor.gas', light_inside: 'light.inside' };
   for (const [vehicle, outline, name] of OUT) {
@@ -65,10 +65,6 @@ if (shot === 'outlines') {
     const c = card({ name, vehicle, outline, entities: ents });
     cell.append(c); root.append(cell);
   }
-  // Nur Kopfzeile und Seitenansicht zeigen, die Kacheln darunter abschneiden.
-  const note = document.createElement('div'); note.className = 'cell note';
-  note.innerHTML = '<div><b>8 allgemeine Umrisse</b>Selbst gezeichnete Annäherungen, keine Herstellerzeichnungen.<br>Umrisse gängiger Baureihen sind geplant.</div>';
-  root.append(note);
   // Je Reihe (Wohnwagen, Wohnmobil, Van) gleich hoch, darunter abdecken: nur Kopfzeile und Seitenansicht bleiben sichtbar.
   setTimeout(() => {
     const cells = [...root.querySelectorAll('.cell:not(.note)')];
@@ -79,7 +75,6 @@ if (shot === 'outlines') {
       cell.style.height = `${rowH[Math.floor(i / 3)]}px`;
       const cover = document.createElement('div'); cover.className = 'cover'; cover.style.top = `${crops[i]}px`; cell.append(cover);
     });
-    note.style.height = `${rowH[2]}px`;
     document.title = 'fertig';
   }, 50);
 } else document.title = 'fertig';

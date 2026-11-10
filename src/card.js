@@ -24,6 +24,17 @@ const visA = () => clamp(-C.anim.p * EX, -MAXA, MAXA);
 const miniP = () => clamp(-C.anim.p * EX, -14, 14);
 const miniR = () => clamp(-C.anim.r * EX, -14, 14);
 const isOff = (s) => !s || s.state === 'unavailable' || s.state === 'unknown';
+/* Beschriftung einer Kachel oder eines Schalters: eigener Name, sonst Standardtext. Bei zwei Gasflaschen „Gas 1“ und „Gas 2“. */
+const twoGas = () => !!(C.cfg.entities.gas && C.cfg.entities.gas2);
+function nameOf(k, def) {
+  const own = C.cfg.names && C.cfg.names[k];
+  if (own) return esc(own);
+  if (k === 'gas2') return `${t('gas')} 2`;
+  if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
+  return def !== undefined ? def : t(k);
+}
+/* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
+const shortOf = (k, def) => { const own = C.cfg.names && C.cfg.names[k]; return own ? (own.length <= 10 ? esc(own) : '') : def; };
 
 /** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
@@ -38,8 +49,10 @@ function readStates(hass, cfg) {
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
     out.st[k] = 'ok'; out.v[k] = n; out.unit[k] = s.attributes && s.attributes.unit_of_measurement;
   }
-  const ga = cfg.entities.gas_availability;
-  if (ga && out.st.gas === 'ok' && isOff(hass.states[ga])) out.st.gas = 'off';
+  for (const [k, ak] of [['gas', 'gas_availability'], ['gas2', 'gas2_availability']]) {
+    const ga = cfg.entities[ak];
+    if (ga && out.st[k] === 'ok' && isOff(hass.states[ga])) out.st[k] = 'off';
+  }
   return out;
 }
 
@@ -80,6 +93,15 @@ function doorEl(D, on, i) {
 function hatchEl(h) {
   return rr(h.x, h.y, h.w, h.h, h.r, 'fill="none" stroke="var(--body-line)" stroke-width="1.1"')
     + (h.lock ? rr(h.x + h.w - 14, h.y + h.h / 2 - 3, 8, 6, 2, 'fill="var(--frame)" opacity=".7"') : rr(h.x + h.w / 2 - 4, h.y + 4, 8, 4, 2, 'fill="var(--frame)" opacity=".6"'));
+}
+/* Lüftungsgitter (zum Beispiel Kühlschrank) und Markisenkassette an der Dachkante */
+function ventEl(g) {
+  let l = ''; for (let y = g.y + 4; y < g.y + g.h - 2; y += 4) l += `<line x1="${g.x + 4}" y1="${y}" x2="${g.x + g.w - 4}" y2="${y}"/>`;
+  return `${rr(g.x, g.y, g.w, g.h, 3, 'fill="var(--plastic)"')}<g stroke="var(--body-line)" stroke-width="1.2" opacity=".8">${l}</g>`;
+}
+function awningEl(A) {
+  return `${rr(A.x, A.y, A.w, A.h, A.h / 2, 'fill="var(--metal)" stroke="var(--body-line)" stroke-width="1.1"')}
+    ${rr(A.x + 6, A.y + 2.5, A.w - 12, 2, 1, 'fill="#fff" opacity=".35"')}${rr(A.x + A.w - 8, A.y - 1, 8, A.h + 2, 3, 'fill="var(--plastic)"')}`;
 }
 function skylightEl(k, y) {
   return `<path d="M${k.x} ${y + 1} Q${k.x + 2} ${y - 7} ${k.x + 9} ${y - 7} L${k.x + k.w - 9} ${y - 7} Q${k.x + k.w - 2} ${y - 7} ${k.x + k.w} ${y + 1} Z" fill="var(--cut-a)" stroke="var(--body-line)" stroke-width="1.2"/>
@@ -133,23 +155,23 @@ function tankEl(id, b, color, p, state, shortName, warn) {
     : rr(b.x + b.w * 0.7, b.y - 5, 12, 6, 2, 'fill="var(--tank-line)"');
   const line = warn ? 'var(--c-warn)' : 'var(--tank-line)';
   const label = state === 'off' ? `<text class="pct${b.under ? ' not-small' : ''}" x="${cx}" y="${cy}" style="font-weight:500">${t('offline')}</text>`
-    : `<text class="pct not-small" x="${cx}" y="${cy}">${b.w >= 76 ? shortName + ' ' : ''}${nf(p)} %</text>${b.under ? '' : `<text class="pct only-small" x="${cx}" y="${cy}">${nf(p)} %</text>`}`;
+    : `<text class="pct not-small" x="${cx}" y="${cy}">${b.w >= 76 && shortName ? shortName + ' ' : ''}${nf(p)} %</text>${b.under ? '' : `<text class="pct only-small" x="${cx}" y="${cy}">${nf(p)} %</text>`}`;
   return `<clipPath id="ct${id}">${rr(b.x, b.y, b.w, b.h, r)}</clipPath>${b.under ? '' : fit}${rr(b.x, b.y, b.w, b.h, r, 'fill="var(--tank)"')}${inner}
     ${rr(b.x + 5, b.y + 4, Math.max(5, b.w * 0.07), b.h - 8, 2.5, 'fill="#fff" opacity=".28"')}${b.under ? fit : ''}
     ${rr(b.x, b.y, b.w, b.h, r, `fill="none" stroke="${line}" stroke-width="${warn ? 2.2 : 1.3}"`)}${label}`;
 }
-function gasEl(b, p, state, warn) {
+function gasEl(id, b, p, state, warn) {
   const x = b.x, y = b.y, w = b.w, h = b.h, top = y + 13, bot = y + h - 5, cx = x + w / 2, cyb = (top + bot) / 2, a = visA();
   const body = `M${x} ${top + 9} Q${x} ${top} ${x + 9} ${top} L${x + w - 9} ${top} Q${x + w} ${top} ${x + w} ${top + 9} L${x + w} ${bot - 3} Q${x + w} ${bot} ${x + w - 3} ${bot} L${x + 3} ${bot} Q${x} ${bot} ${x} ${bot - 3} Z`;
   let inner = '';
   if (state === 'ok' && p > 0) {
     const ly = top + (bot - top) * (1 - p / 100);
-    inner = `<g clip-path="url(#ctGas)"><g class="counter" data-cx="${cx}" data-cy="${cyb}" transform="rotate(${-a} ${cx} ${cyb})">${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="var(--c-gas)"')}${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="url(#gLiquid)"')}</g></g>`;
+    inner = `<g clip-path="url(#ctGas${id})"><g class="counter" data-cx="${cx}" data-cy="${cyb}" transform="rotate(${-a} ${cx} ${cyb})">${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="var(--c-gas)"')}${rr(x - 40, ly, w + 80, h + 40, 0, 'fill="url(#gLiquid)"')}</g></g>`;
   }
-  if (state === 'off') inner = `<g clip-path="url(#ctGas)">${rr(x, top, w, bot - top, 0, 'fill="url(#pHatch)"')}</g>`;
+  if (state === 'off') inner = `<g clip-path="url(#ctGas${id})">${rr(x, top, w, bot - top, 0, 'fill="url(#pHatch)"')}</g>`;
   const line = warn ? 'var(--c-warn)' : 'var(--tank-line)';
   const txt = state === 'ok' ? `<text class="pct not-small" x="${cx}" y="${cyb + 2}">${nf(p)}</text>` : '';
-  return `<clipPath id="ctGas"><path d="${body}"/></clipPath>
+  return `<clipPath id="ctGas${id}"><path d="${body}"/></clipPath>
     <path d="M${x + 5} ${top} L${x + 5} ${y + 5} Q${x + 5} ${y + 2} ${x + 8} ${y + 2} L${x + w - 8} ${y + 2} Q${x + w - 5} ${y + 2} ${x + w - 5} ${y + 5} L${x + w - 5} ${top}" fill="none" stroke="var(--metal)" stroke-width="2.4"/>
     ${rr(cx - 3, y + 5, 6, top - y - 4, 1.5, 'fill="var(--plastic)"')}<path d="${body}" fill="var(--tank)"/>${inner}
     ${rr(x + 4, top + 5, 4, bot - top - 10, 2, 'fill="#fff" opacity=".28"')}<path d="${body}" fill="none" stroke="${line}" stroke-width="${warn ? 2.2 : 1.3}"/>
@@ -194,7 +216,7 @@ function inletEl(d, active) {
     <circle cx="${x}" cy="${y}" r="4.5" fill="${active ? 'var(--c-grid)' : 'var(--metal)'}"/>`;
 }
 function vehicleEl(d) {
-  const fresh = st('fresh'), grey = st('grey'), gas = st('gas'), bat = st('battery'), sol = st('solar');
+  const fresh = st('fresh'), grey = st('grey'), bat = st('battery'), sol = st('solar');
   const liOn = st('lightIn') === 'ok' && val('lightIn'), loOn = st('lightOut') === 'ok' && val('lightOut');
   const W = d.wheel, cy = 286 - W.r, src = sources();
   let s = `<ellipse cx="${(d.ext[0] + d.ext[1]) / 2}" cy="287" rx="${(d.ext[1] - d.ext[0]) / 2 + 8}" ry="6" fill="#000" opacity=".25" filter="url(#fSoft)"/>`;
@@ -212,6 +234,9 @@ function vehicleEl(d) {
   if (d.rail) s += `<path d="${d.rail}" fill="none" stroke="var(--body-line)" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>`;
   if (d.seams) s += `<path d="${d.seams}" fill="none" stroke="var(--body-line)" stroke-width="1.1" opacity=".75"/>`;
   (d.hatches || []).forEach((h) => { s += hatchEl(h); });
+  (d.vents || []).forEach((g) => { s += ventEl(g); });
+  (d.handles || []).forEach((g) => { s += rr(g.x, g.y, 16, 4, 2, 'fill="var(--frame)" opacity=".8"'); });
+  if (d.awning) s += awningEl(d.awning);
   if (d.filler) s += `<circle cx="${d.filler.x}" cy="${d.filler.y}" r="6.5" fill="var(--body-shade)" stroke="var(--body-line)"/><circle cx="${d.filler.x}" cy="${d.filler.y}" r="3" fill="var(--c-water)" opacity=".75"/>`;
   if (d.frontWin) s += `<path d="${d.frontWin}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
   let i = 0; d.windows.forEach((w) => { s += windowEl(w, liOn, i++); });
@@ -237,9 +262,13 @@ function vehicleEl(d) {
   }
   (d.cut || []).forEach((c, j) => { s += cutEl(c, j); });
   (d.wheelhouse || []).forEach((w) => { const yb = w.y + w.h; s += `<path d="M${w.x} ${yb} L${w.x} ${yb - 14} Q${w.x} ${w.y} ${w.x + w.w / 2} ${w.y} Q${w.x + w.w} ${w.y} ${w.x + w.w} ${yb - 14} L${w.x + w.w} ${yb} Z" fill="var(--cut-line)" opacity=".5"/>`; });
-  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, t('shortFresh'), fresh === 'ok' && val('fresh') <= 10);
-  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, t('shortGrey'), grey === 'ok' && val('grey') >= 85);
-  if (gas !== 'none') s += gasEl(d.gas, gas === 'ok' ? pct('gas') : 0, gas, gas === 'ok' && val('gas') <= 15);
+  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && val('fresh') <= 10);
+  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && val('grey') >= 85);
+  // Gas: eine Flasche an ihrem Platz, zwei schmalere nebeneinander im selben Fach.
+  const bottles = ['gas', 'gas2'].filter((k) => st(k) !== 'none');
+  const gcx = d.gas.x + d.gas.w / 2, gw = 19;
+  const gbox = bottles.length === 2 ? [{ ...d.gas, x: gcx - gw - 1.5, w: gw }, { ...d.gas, x: gcx + 1.5, w: gw }] : [d.gas];
+  bottles.forEach((k, j) => { const g = st(k); s += gasEl(j + 1, gbox[j], g === 'ok' ? pct(k) : 0, g, g === 'ok' && val(k) <= 15); });
   if (src.charger !== 'none') s += inletEl(d, src.chargerActive);
   if (bat !== 'none') s += batEl(d.bat, bat === 'ok' ? pct('battery') : 0, bat, src.batCharging);
   if (sol !== 'none') s += solarEl(d, sol, sol === 'ok' ? val('solar') : 0);
@@ -248,7 +277,9 @@ function vehicleEl(d) {
     if (src.chargerActive) s += `<path class="flow c" data-flow="charger" d="${d.cflow}"/>`;
   }
   W.xs.forEach((x) => { s += wheelEl(x, cy, W.r); });
-  if (d.flare) s += `<path d="M${d.flare - W.r - 8} ${cy + 1} A${W.r + 8} ${W.r + 8} 0 0 1 ${d.flare + W.r + 8} ${cy + 1}" fill="none" stroke="var(--plastic)" stroke-width="6" stroke-linecap="round"/>`;
+  for (const fx of [d.flare, d.flareRear]) {
+    if (fx) s += `<path d="M${fx - W.r - 8} ${cy + 1} A${W.r + 8} ${W.r + 8} 0 0 1 ${fx + W.r + 8} ${cy + 1}" fill="none" stroke="var(--plastic)" stroke-width="6" stroke-linecap="round"/>`;
+  }
   return s;
 }
 function sceneSVG(hasTilt) {
@@ -309,37 +340,39 @@ const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v));
 function tilesHTML() {
   const out = [];
   const b = st('battery'), p = st('power'), src = sources(), sTxt = srcText(src);
-  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', t('battery')));
+  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', nameOf('battery')));
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
     const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
-    out.push(tile('battery', 'battery', batColor(val('battery')), t('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
-  } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', t('power'), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
+  } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   const so = st('solar');
-  if (so === 'off') out.push(offTile('solar', 'sun', t('solar')));
-  else if (so === 'ok') out.push(tile('solar', 'sun', 'var(--c-sun)', t('solar'), nf(val('solar')), unitOf('solar', 'W')));
-  if (src.charger === 'off') out.push(offTile('charger', 'plug', t('charger')));
+  if (so === 'off') out.push(offTile('solar', 'sun', nameOf('solar')));
+  else if (so === 'ok') out.push(tile('solar', 'sun', 'var(--c-sun)', nameOf('solar'), nf(val('solar')), unitOf('solar', 'W')));
+  if (src.charger === 'off') out.push(offTile('charger', 'plug', nameOf('charger')));
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
     const v = cpOk ? nf(val('chargerPower')) : (val('charger') ? t('on') : t('off'));
     const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
-    out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', t('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
+    out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
   const f = st('fresh');
-  if (f === 'off') out.push(offTile('fresh', 'drop', t('fresh')));
-  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, t('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
+  if (f === 'off') out.push(offTile('fresh', 'drop', nameOf('fresh')));
+  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
   const g = st('grey');
-  if (g === 'off') out.push(offTile('grey', 'grey', t('grey')));
-  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, t('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
-  const ga = st('gas');
-  if (ga === 'off') out.push(offTile('gas', 'gas', t('gas')));
-  else if (ga === 'ok') { const c = val('gas') <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile('gas', 'gas', c, t('gas'), nf(val('gas')), '%', barOf(val('gas'), c))); }
+  if (g === 'off') out.push(offTile('grey', 'grey', nameOf('grey')));
+  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
+  for (const k of ['gas', 'gas2']) {
+    const ga = st(k);
+    if (ga === 'off') out.push(offTile(k, 'gas', nameOf(k)));
+    else if (ga === 'ok') { const c = val(k) <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile(k, 'gas', c, nameOf(k), nf(val(k)), '%', barOf(val(k), c))); }
+  }
   const ti = st('tempIn');
-  if (ti === 'off') out.push(offTile('tempIn', 'temp', t('tempIn')));
-  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', t('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
+  if (ti === 'off') out.push(offTile('tempIn', 'temp', nameOf('tempIn')));
+  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
   const tf = st('tempFridge');
-  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', t('tempFridge')));
-  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', t('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
+  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', nameOf('tempFridge')));
+  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', nameOf('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
   return out;
 }
 function actsHTML() {
@@ -350,7 +383,7 @@ function actsHTML() {
     const on = s === 'ok' && val(k);
     let sub = s === 'off' ? t('offline') : (on ? t('on') : t('off')), cls = '';
     if (k === 'pump' && s === 'ok' && st('fresh') === 'ok' && val('fresh') <= 5) { sub = t('tankLow'); cls = 'warn'; }
-    const label = k === 'pump' && C.cfg.pump_name ? esc(C.cfg.pump_name) : t(k);
+    const label = nameOf(k);
     return `<button class="act ${on ? 'on' : ''} ${s === 'off' ? 'dis' : ''}" style="--c:${c}" data-a="toggle" data-k="${k}" data-fid="act-${k}" ${s === 'off' ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ic(icon, 17)}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
   }).join('');
 }

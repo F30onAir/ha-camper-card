@@ -62,3 +62,28 @@ test('Toleranz wird begrenzt, Offline-Verhalten und Sprache geprüft', () => {
 test('Ohne Konfiguration gibt es einen verständlichen Fehler', () => {
   assert.throws(() => normalizeConfig(null), /Konfiguration fehlt/);
 });
+
+test('Eigene Kachelnamen: getrimmt, begrenzt, intern nach Schlüssel der Karte', () => {
+  const c = normalizeConfig({ names: { fresh: '  Färskvatten ', gas2: 'Gasol höger', temp_inside: 'Inne', unbekannt: 'x', solar: '', battery: 42 } });
+  assert.deepEqual(c.names, { fresh: 'Färskvatten', gas2: 'Gasol höger', tempIn: 'Inne' });
+  assert.equal(normalizeConfig({ names: { fresh: 'x'.repeat(80) } }).names.fresh.length, 40);
+  assert.deepEqual(normalizeConfig({}).names, {});
+});
+
+test('pump_name aus 0.1 gilt weiter, names.pump hat Vorrang', () => {
+  assert.equal(normalizeConfig({ pump_name: 'Wasserhähne' }).names.pump, 'Wasserhähne');
+  assert.equal(normalizeConfig({ pump_name: 'Alt', names: { pump: 'Neu' } }).names.pump, 'Neu');
+});
+
+test('Zweite Gasflasche mit eigener Verfügbarkeit', () => {
+  const c = normalizeConfig({ entities: { gas: 'sensor.g1', gas2: 'sensor.g2', gas2_availability: 'sensor.raw2' } });
+  assert.deepEqual(c.entities, { gas: 'sensor.g1', gas2: 'sensor.g2', gas2_availability: 'sensor.raw2' });
+});
+
+test('Kastenwagen (Ducato-Typ) ist ein eigener Van-Umriss, Hochdach bleibt der Standard', () => {
+  const c = normalizeConfig({ outline: 'van_ducato' });
+  assert.equal(c.vehicle, 'van');
+  assert.equal(c.outline, 'van_ducato');
+  assert.equal(c.leveling.base, 404);
+  assert.equal(normalizeConfig({ vehicle: 'van' }).outline, 'van_high');
+});
