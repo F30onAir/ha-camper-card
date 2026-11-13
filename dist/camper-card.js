@@ -1,4 +1,4 @@
-/*! Camper Card 0.2.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.3.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
@@ -24,6 +24,8 @@ const STRINGS = {
     tl: 'Längs', ts: 'Seitlich',
     viaSolar: 'über Solar', viaCharger: 'über Ladegerät', viaBoth: 'über Solar und Ladegerät', srcUnknown: 'Quelle unbekannt', chCharging: 'lädt', chOnIdle: 'an, lädt nicht',
     sideView: 'Seitenansicht',
+    tempOut: 'Außen', tempFreezer: 'Gefrierfach', humIn: 'Luftfeuchte', humHigh: 'zu feucht', airOut: 'lüften', frost: 'Frostgefahr',
+    runLeft: 'reicht ca. {}', runFull: 'voll in ca. {}', uMin: 'Min.', uH: 'Std.', uDays: 'Tage', over30: 'über 30 Tage',
     // Editor
     ed_name: 'Name', ed_vehicle: 'Fahrzeugtyp', ed_outline: 'Umriss', ed_offline: 'Zugewiesen, aber offline', ed_language: 'Sprache',
     ed_offline_grey: 'Grau mit „offline“ anzeigen', ed_offline_hide: 'Ausblenden', ed_lang_auto: 'Wie Home Assistant',
@@ -44,6 +46,13 @@ const STRINGS = {
     ed_zero_hint: 'Nur nutzen, wenn das Fahrzeug nachweislich waagerecht steht, zum Beispiel mit einer Wasserwaage geprüft.',
     ed_zero_now: 'Aktuell gemessen', ed_zero_set: 'Gespeicherter Nullpunkt', ed_zero_none: 'Kein Neigungssensor zugewiesen oder offline.',
     ed_no_form: 'Der Editor von Home Assistant konnte nicht geladen werden. Die Karte lässt sich weiter per YAML einstellen.',
+    ed_temp_outside: 'Temperatur außen', ed_temp_freezer: 'Temperatur Gefrierfach', ed_humidity_inside: 'Luftfeuchte innen',
+    ed_humidity_max: 'Hinweis „zu feucht“ ab (%)', ed_frost_warning: 'Frostwarnung für die Tanks', ed_frost_temp: 'Frostwarnung unter (°C)',
+    ed_frost_help: 'Warnt, wenn Wasser im Tank ist und es zu kalt wird. Für Tanks im Aufbau zählt die Innentemperatur, für Tanks unter dem Boden die Außentemperatur.',
+    ed_battery_capacity: 'Batterie: Kapazität (Ah)', ed_battery_voltage: 'Batterie: Nennspannung (V)',
+    ed_capacity_help: 'Für die Restlaufzeit, geschätzt aus Ladestand, Leistung und Kapazität. Leer lassen, um sie nicht anzuzeigen.',
+    ed_g_extra: 'Weitere Schalter', ed_sw: 'Schalter', ed_sw_name: 'Name', ed_sw_icon: 'Symbol',
+    ed_sw_help: 'Zum Beispiel Kühlschrank, Heizung oder Boiler. Ohne Namen zeigt die Karte den Namen aus Home Assistant.',
   },
   en: {
     overview: 'Overview', level: 'Levelling', battery: 'Battery', power: 'Power', solar: 'Solar', fresh: 'Fresh water', grey: 'Grey water', gas: 'Gas',
@@ -63,6 +72,8 @@ const STRINGS = {
     tl: 'Length', ts: 'Side',
     viaSolar: 'from solar', viaCharger: 'from charger', viaBoth: 'from solar and charger', srcUnknown: 'source unknown', chCharging: 'charging', chOnIdle: 'on, not charging',
     sideView: 'Side view',
+    tempOut: 'Outside', tempFreezer: 'Freezer', humIn: 'Humidity', humHigh: 'too humid', airOut: 'ventilate', frost: 'Frost risk',
+    runLeft: 'lasts approx. {}', runFull: 'full in approx. {}', uMin: 'min', uH: 'h', uDays: 'days', over30: 'over 30 days',
     ed_name: 'Name', ed_vehicle: 'Vehicle type', ed_outline: 'Outline', ed_offline: 'Assigned but offline', ed_language: 'Language',
     ed_offline_grey: 'Show grey with “offline”', ed_offline_hide: 'Hide', ed_lang_auto: 'Like Home Assistant',
     ed_battery: 'Battery: state of charge', ed_battery_power: 'Battery: power (BMS)', ed_solar: 'Solar power', ed_charger: 'Charger: switch',
@@ -82,6 +93,13 @@ const STRINGS = {
     ed_zero_hint: 'Only use this when the vehicle is verifiably level, for example checked with a spirit level.',
     ed_zero_now: 'Currently measured', ed_zero_set: 'Saved zero point', ed_zero_none: 'No tilt sensor assigned or offline.',
     ed_no_form: 'The Home Assistant editor could not be loaded. The card can still be configured in YAML.',
+    ed_temp_outside: 'Outside temperature', ed_temp_freezer: 'Freezer temperature', ed_humidity_inside: 'Inside humidity',
+    ed_humidity_max: 'Show “too humid” from (%)', ed_frost_warning: 'Frost warning for the tanks', ed_frost_temp: 'Frost warning below (°C)',
+    ed_frost_help: 'Warns when there is water in a tank and it gets too cold. Tanks inside the body use the inside temperature, underfloor tanks the outside temperature.',
+    ed_battery_capacity: 'Battery: capacity (Ah)', ed_battery_voltage: 'Battery: nominal voltage (V)',
+    ed_capacity_help: 'For the remaining time, estimated from charge, power and capacity. Leave empty to hide it.',
+    ed_g_extra: 'More switches', ed_sw: 'Switch', ed_sw_name: 'Name', ed_sw_icon: 'Icon',
+    ed_sw_help: 'For example fridge, heater or boiler. Without a name the card shows the name from Home Assistant.',
   },
 };
 
@@ -292,6 +310,21 @@ function chargeSources(st, v, chargerMin) {
   };
 }
 
+/**
+ * Restlaufzeit der Batterie: beim Entladen bis leer, beim Laden bis voll.
+ * soc in %, power mit Einheit (W, kW, A oder mA; positiv heißt laden), capAh Kapazität in Ah, volt Nennspannung.
+ * Ergebnis { charging, hours } oder null, wenn sich nichts Sinnvolles sagen lässt (keine Kapazität, Ruhe, schon voll).
+ */
+function batteryHours(soc, power, unit, capAh, volt) {
+  if (!(capAh > 0) || !(volt > 0) || !Number.isFinite(soc) || !Number.isFinite(power)) return null;
+  const u = String(unit || 'W').trim();
+  const w = u === 'kW' ? power * 1000 : u === 'A' ? power * volt : u === 'mA' ? power * volt / 1000 : power;
+  if (Math.abs(w) <= 5) return null;
+  const s = Math.min(100, Math.max(0, soc)), wh = capAh * volt;
+  if (w > 0 && s >= 99) return null;
+  return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
+}
+
 /** Kurzform für Anzeige und Tests: 'both', 'solar', 'charger', 'unknown' oder ''. */
 function sourceKey(src) {
   if (!src.batCharging) return '';
@@ -307,14 +340,18 @@ function sourceKey(src) {
 /** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
 const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
-  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
+  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', humidity_inside: 'humIn', temp_outside: 'tempOut',
+  temp_fridge: 'tempFridge', temp_freezer: 'tempFreezer',
   pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
 };
 const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 const VEHICLES = ['caravan', 'motorhome', 'van'];
 /** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
-const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside'];
+const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
+  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside'];
+/** Höchstzahl frei belegbarer Schalter (switches:). */
+const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
 const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
@@ -346,6 +383,14 @@ function normalizeConfig(raw) {
   for (const key of NAME_KEYS) { const n = txt(nm[key]); if (n) names[ENTITY_KEYS[key]] = n; }
   const pumpName = txt(raw.pump_name);
   if (pumpName && !names.pump) names.pump = pumpName;
+  // Frei belegbare Schalter: Liste aus { entity, name, icon } oder nur der Entität als Text.
+  const switches = (Array.isArray(raw.switches) ? raw.switches : []).map((s) => {
+    const o = typeof s === 'string' ? { entity: s } : (s && typeof s === 'object' ? s : {});
+    const entity = typeof o.entity === 'string' && o.entity.includes('.') ? o.entity.trim() : null;
+    const icon = typeof o.icon === 'string' && /^[a-z]+:[a-z0-9-]+$/.test(o.icon.trim()) ? o.icon.trim() : null;
+    return entity ? { entity, name: txt(o.name), icon } : null;
+  }).filter(Boolean).slice(0, MAX_SWITCHES);
+  const cap = cfgNum(raw.battery_capacity, 0);
   const lv = raw.leveling && typeof raw.leveling === 'object' ? raw.leveling : {};
   const dims = DIMS[outline];
   const track = cfgNum(lv.track, null), base = cfgNum(lv.base, null);
@@ -359,6 +404,14 @@ function normalizeConfig(raw) {
     names,
     charger_min_power: Math.max(0, cfgNum(raw.charger_min_power, 10)),
     charger_toggle: raw.charger_toggle === true,
+    // Restlaufzeit: Kapazität in Ah (ohne Angabe keine Restlaufzeit), Nennspannung für die Umrechnung von Watt.
+    battery_capacity: cap > 0 ? cap : null,
+    battery_voltage: cfgClamp(cfgNum(raw.battery_voltage, 12.8), 6, 60),
+    // Frostwarnung in °C, gilt für Tanks mit Wasser. Abschalten mit frost_warning: false.
+    frost_warning: raw.frost_warning !== false,
+    frost_temp: cfgClamp(cfgNum(raw.frost_temp, 3), -10, 10),
+    humidity_max: cfgClamp(cfgNum(raw.humidity_max, 70), 40, 100),
+    switches,
     entities,
     leveling: {
       track: track !== null && track > 0 ? track : dims[0],
@@ -383,7 +436,7 @@ function normalizeConfig(raw) {
 
 
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const EX = 2.5, MAXA = 7, BUB = 20;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -413,6 +466,33 @@ function nameOf(k, def) {
 }
 /* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
 const shortOf = (k, def) => { const own = C.cfg.names && C.cfg.names[k]; return own ? (own.length <= 10 ? esc(own) : '') : def; };
+/* Temperatur in °C, auch wenn der Sensor in °F misst. */
+const degC = (k) => (/F/.test(unitOf(k, '°C')) ? (val(k) - 32) * 5 / 9 : val(k));
+/* Frostgefahr für einen Tank mit Wasser. Für Tanks im Aufbau zählt zuerst die Innentemperatur, für Tanks unter dem Boden
+   zuerst die Außentemperatur. Ergebnis: Schlüssel der maßgeblichen Temperatur oder null. */
+function frostOf(k) {
+  const b = C.d[k];
+  if (!C.cfg.frost_warning || !b || st(k) !== 'ok' || val(k) <= 2) return null;
+  for (const tk of b.under ? ['tempOut', 'tempIn'] : ['tempIn', 'tempOut']) if (st(tk) === 'ok') return degC(tk) < C.cfg.frost_temp ? tk : null;
+  return null;
+}
+/* Zahl und Einheit mit festem Leerzeichen, damit die Einheit nicht allein in die nächste Zeile rutscht. */
+const NB = '\u00a0';
+const frostTxt = (tk) => `${t('frost')} · ${nf(val(tk), 1)}${NB}${esc(unitOf(tk, '°C'))}`;
+/* Dauer kurz und lesbar: Minuten, halbe Stunden, Stunden, Tage. */
+function dur(h) {
+  if (h < 0.95) return `${Math.min(55, Math.max(5, Math.round(h * 12) * 5))}${NB}${t('uMin')}`;
+  if (h < 10) { const r = Math.max(1, Math.round(h * 2) / 2); return `${nf(r, Number.isInteger(r) ? 0 : 1)}${NB}${t('uH')}`; }
+  if (h < 48) return `${nf(Math.round(h))}${NB}${t('uH')}`;
+  const d = Math.round(h / 24);
+  return d > 30 ? t('over30') : `${nf(d)}${NB}${t('uDays')}`;
+}
+/* Restlaufzeit der Batterie als Text, leer ohne Kapazität, in Ruhe oder wenn ein Wert fehlt. */
+function runTxt() {
+  if (st('battery') !== 'ok' || st('power') !== 'ok') return '';
+  const r = batteryHours(val('battery'), val('power'), unitOf('power', 'W'), C.cfg.battery_capacity, C.cfg.battery_voltage);
+  return r ? t(r.charging ? 'runFull' : 'runLeft').replace('{}', dur(r.hours)) : '';
+}
 
 /** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
@@ -448,6 +528,9 @@ const IC = {
   lamp: '<path d="M5 21h14M12 21V10"/><path d="M8 10h8l-1.5-6h-5z"/>',
   plug: '<path d="M9 3v5M15 3v5"/><path d="M6.5 8h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5V21"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', warn: '<path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5M12 17.4v.1"/>',
+  snow: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>',
+  hum: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/><path d="M9.6 16.6l4.8-5.2"/><circle cx="9.9" cy="12.4" r=".8"/><circle cx="14.1" cy="15.8" r=".8"/>',
+  power: '<path d="M12 3.5v8"/><path d="M7 6.8a7 7 0 1 0 10 0"/>',
 };
 const ic = (n, s = 20) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
@@ -640,8 +723,10 @@ function vehicleEl(d) {
   }
   (d.cut || []).forEach((c, j) => { s += cutEl(c, j); });
   (d.wheelhouse || []).forEach((w) => { const yb = w.y + w.h; s += `<path d="M${w.x} ${yb} L${w.x} ${yb - 14} Q${w.x} ${w.y} ${w.x + w.w / 2} ${w.y} Q${w.x + w.w} ${w.y} ${w.x + w.w} ${yb - 14} L${w.x + w.w} ${yb} Z" fill="var(--cut-line)" opacity=".5"/>`; });
-  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && val('fresh') <= 10);
-  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && val('grey') >= 85);
+  // Frostgefahr: Rand in Warnfarbe und eine kleine Schneeflocke oben rechts im Tank.
+  const snow = (b) => `<g class="not-small" transform="translate(${b.x + b.w - 18} ${b.y + 3}) scale(.6)" fill="none" stroke="var(--c-cold)" stroke-width="2.6" stroke-linecap="round">${IC.snow}</g>`;
+  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && (val('fresh') <= 10 || !!frostOf('fresh'))) + (frostOf('fresh') ? snow(d.fresh) : '');
+  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && (val('grey') >= 85 || !!frostOf('grey'))) + (frostOf('grey') ? snow(d.grey) : '');
   // Gas: eine Flasche an ihrem Platz, zwei schmalere nebeneinander im selben Fach.
   const bottles = ['gas', 'gas2'].filter((k) => st(k) !== 'none');
   const gcx = d.gas.x + d.gas.w / 2, gw = 19;
@@ -722,7 +807,8 @@ function tilesHTML() {
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
     const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
-    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
+    const sub = [runTxt(), sTxt].filter(Boolean).join(' · ');
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
   } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   const so = st('solar');
   if (so === 'off') out.push(offTile('solar', 'sun', nameOf('solar')));
@@ -734,35 +820,53 @@ function tilesHTML() {
     const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
     out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
-  const f = st('fresh');
+  const f = st('fresh'), ff = frostOf('fresh');
   if (f === 'off') out.push(offTile('fresh', 'drop', nameOf('fresh')));
-  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
-  const g = st('grey');
+  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c), ff ? frostTxt(ff) : '', true)); }
+  const g = st('grey'), gf = frostOf('grey');
   if (g === 'off') out.push(offTile('grey', 'grey', nameOf('grey')));
-  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
+  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c), gf ? frostTxt(gf) : '', true)); }
   for (const k of ['gas', 'gas2']) {
     const ga = st(k);
     if (ga === 'off') out.push(offTile(k, 'gas', nameOf(k)));
     else if (ga === 'ok') { const c = val(k) <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile(k, 'gas', c, nameOf(k), nf(val(k)), '%', barOf(val(k), c))); }
   }
-  const ti = st('tempIn');
+  // Innen: Temperatur mit der Luftfeuchte als zweiter Zeile. Ohne Innentemperatur bekommt die Luftfeuchte eine eigene Kachel.
+  const ti = st('tempIn'), hu = st('humIn'), humHigh = hu === 'ok' && val('humIn') >= C.cfg.humidity_max;
+  const humVal = () => `${nf(val('humIn'))}${NB}${esc(unitOf('humIn', '%'))}`;
   if (ti === 'off') out.push(offTile('tempIn', 'temp', nameOf('tempIn')));
-  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
-  const tf = st('tempFridge');
-  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', nameOf('tempFridge')));
-  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', nameOf('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
+  else if (ti === 'ok') {
+    const sub = hu === 'ok' ? (humHigh ? `${humVal()} · ${t('humHigh')}` : `${humVal()} ${nameOf('humIn')}`) : hu === 'off' ? `${nameOf('humIn')} ${t('offline')}` : '';
+    out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C'), '', sub, humHigh));
+  }
+  if (ti !== 'ok' && hu === 'off') out.push(offTile('humIn', 'hum', nameOf('humIn')));
+  else if (ti !== 'ok' && hu === 'ok') out.push(tile('humIn', 'hum', humHigh ? 'var(--c-warn)' : 'var(--c-out)', nameOf('humIn'), nf(val('humIn')), unitOf('humIn', '%'), '', humHigh ? `${t('humHigh')}, ${t('airOut')}` : '', true));
+  for (const [k, icon, c] of [['tempOut', 'temp', 'var(--c-out)'], ['tempFridge', 'fridge', 'var(--c-cold)'], ['tempFreezer', 'snow', 'var(--c-cold)']]) {
+    const s = st(k);
+    if (s === 'off') out.push(offTile(k, icon, nameOf(k)));
+    else if (s === 'ok') out.push(tile(k, icon, c, nameOf(k), nf(val(k), 1), unitOf(k, '°C')));
+  }
   return out;
 }
+const actBtn = (attrs, c, on, dis, ico, label, sub, cls = '') => `<button class="act ${on ? 'on' : ''} ${dis ? 'dis' : ''}" style="--c:${c}" data-a="toggle" ${attrs} ${dis ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ico}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
 function actsHTML() {
   const defs = [['pump', 'pump', 'var(--c-pump)'], ['lightIn', 'bulb', 'var(--c-light)'], ['lightOut', 'lamp', 'var(--c-light)'], ['charger', 'plug', 'var(--c-grid)']];
-  return defs.map(([k, icon, c]) => {
+  const fixed = defs.map(([k, icon, c]) => {
     const s = st(k);
     if (s === 'none' || (k === 'charger' && !C.cfg.charger_toggle)) return '';
     const on = s === 'ok' && val(k);
     let sub = s === 'off' ? t('offline') : (on ? t('on') : t('off')), cls = '';
     if (k === 'pump' && s === 'ok' && st('fresh') === 'ok' && val('fresh') <= 5) { sub = t('tankLow'); cls = 'warn'; }
-    const label = nameOf(k);
-    return `<button class="act ${on ? 'on' : ''} ${s === 'off' ? 'dis' : ''}" style="--c:${c}" data-a="toggle" data-k="${k}" data-fid="act-${k}" ${s === 'off' ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ic(icon, 17)}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
+    return actBtn(`data-k="${k}" data-fid="act-${k}"`, c, on, s === 'off', ic(icon, 17), nameOf(k), sub, cls);
+  }).join('');
+  // Frei belegbare Schalter: Name aus der Konfiguration, sonst aus Home Assistant. Symbol über ha-icon, sonst ein eigenes.
+  const haIcon = typeof customElements !== 'undefined' && !!customElements.get('ha-icon');
+  return fixed + C.cfg.switches.map((w, i) => {
+    const s = C.hass.states[w.entity], off = isOff(s), a = (s && s.attributes) || {};
+    if (off && C.cfg.offline === 'hide') return '';
+    const on = !off && s.state === 'on', icon = w.icon || a.icon;
+    const ico = icon && haIcon ? `<ha-icon icon="${esc(icon)}"></ha-icon>` : ic('power', 17);
+    return actBtn(`data-sw="${i}" data-fid="act-sw${i}"`, 'var(--c-sw)', on, off, ico, esc(w.name || a.friendly_name || w.entity), off ? t('offline') : on ? t('on') : t('off'));
   }).join('');
 }
 function overviewHTML(T) {
@@ -907,7 +1011,7 @@ const CSS = `
 *,*::before,*::after{box-sizing:border-box}
 :host{display:block;
   --c-water:#2a8ade;--c-grey:#7f8263;--c-gas:#db7f12;--c-bat:#2a9a57;--c-bat-mid:#d99a12;--c-bat-low:#d4443a;--c-sun:#d99e00;--c-grid:#6f58d6;--c-light:#ee9f2c;
-  --c-pump:#1f88d0;--c-temp:#d9662a;--c-cold:#1b93b8;--c-ok:#23935a;--c-warn:#c9551f;
+  --c-pump:#1f88d0;--c-temp:#d9662a;--c-cold:#1b93b8;--c-ok:#23935a;--c-warn:#c9551f;--c-out:#4f7fa3;--c-sw:#1f9a8a;
   --scene-top:#e6eff6;--scene-bottom:#f5f7f8;--ground:#c3cbc2;--ground-line:#8a9389;
   --body:#fdfdfc;--body-shade:#e3e7ea;--body-line:#a5acb3;--body-hi:#ffffff;--skirt:#66707a;--skirt-2:#4c555e;
   --frame:#20262c;--glass-a:#4a5664;--glass-b:#1d242b;--cut-a:#d0d6db;--cut-b:#eceff2;--cut-line:#a7afb7;
@@ -915,7 +1019,7 @@ const CSS = `
   --tent:#c9bca2;--tent-line:#a89a7f;--seg-bg:rgba(127,127,127,.14);--seg-on:var(--card-background-color,#fff)}
 :host([dark]){
   --c-water:#4aa5f0;--c-grey:#a5a884;--c-gas:#f09a33;--c-bat:#45bd77;--c-bat-mid:#e8b234;--c-bat-low:#ef6a5e;--c-sun:#f2c230;--c-grid:#a493f5;--c-light:#ffbe5c;
-  --c-pump:#4db3ee;--c-temp:#f0895a;--c-cold:#45bedd;--c-ok:#45bd77;--c-warn:#f0895a;
+  --c-pump:#4db3ee;--c-temp:#f0895a;--c-cold:#45bedd;--c-ok:#45bd77;--c-warn:#f0895a;--c-out:#86b4d6;--c-sw:#45c2b0;
   --scene-top:#1a222b;--scene-bottom:#15191e;--ground:#323c36;--ground-line:#5e6a61;
   --body:#525a63;--body-shade:#3b4249;--body-line:#6d7680;--body-hi:#687280;--skirt:#2b3137;--skirt-2:#1f2328;
   --frame:#0a0c0e;--glass-a:#25303a;--glass-b:#0c1014;--cut-a:#15191d;--cut-b:#20252a;--cut-line:#3d4650;
@@ -957,7 +1061,7 @@ svg:not([data-small]) .only-small{display:none}
 .t-l{font-size:12px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .t-v{font-size:19px;font-weight:500;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 .t-v small{font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:2px}
-.t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);overflow:hidden;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .t-s.warn{color:var(--c-warn)}
 .t-b{grid-column:1/-1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--secondary-text-color) 18%,transparent);overflow:hidden;margin-top:7px}
 .t-b i{display:block;height:100%;border-radius:2px;background:var(--c);transition:width .3s}
@@ -971,6 +1075,7 @@ svg:not([data-small]) .only-small{display:none}
 .act.on{background:color-mix(in srgb,var(--c) 13%,transparent);border-color:color-mix(in srgb,var(--c) 42%,transparent)}
 .act.on .a-i{background:var(--c);color:var(--card-background-color,#fff)}
 .act.dis{opacity:.6;cursor:default}
+.a-i ha-icon{--mdc-icon-size:17px;display:flex}
 .a-t{min-width:0;font-size:13px;line-height:1.2}
 .a-t small{display:block;font-size:11.5px;color:var(--secondary-text-color)}
 .a-t small.warn{color:var(--c-warn)}
@@ -1049,6 +1154,7 @@ class CamperCard extends HTMLElement {
     const h = this._hass, c = this._config;
     const parts = [h.themes && h.themes.darkMode ? 'd' : 'l', (h.locale && h.locale.language) || h.language || ''];
     for (const id of Object.values(c.entities)) { const s = h.states[id]; parts.push(s ? `${s.state}|${(s.attributes && s.attributes.unit_of_measurement) || ''}` : '-'); }
+    for (const w of c.switches) { const s = h.states[w.entity]; parts.push(s ? `${s.state}|${(s.attributes && (s.attributes.friendly_name + s.attributes.icon)) || ''}` : '-'); }
     return parts.join(';');
   }
   _render() {
@@ -1077,7 +1183,8 @@ class CamperCard extends HTMLElement {
     if (!el) return;
     if (el.dataset.a === 'view') { this._ui.view = el.dataset.v; this._render(); return; }
     if (el.dataset.a === 'toggle') {
-      const id = this._config.entities[CFG_OF[el.dataset.k]];
+      const sw = el.dataset.sw !== undefined ? this._config.switches[+el.dataset.sw] : null;
+      const id = sw ? sw.entity : this._config.entities[CFG_OF[el.dataset.k]];
       if (id && this._hass) this._hass.callService('homeassistant', 'toggle', { entity_id: id });
       return;
     }
@@ -1126,16 +1233,19 @@ const CARD_VERSION = VERSION;
 
 
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
-  'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
+  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle'];
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
+  'frost_temp', 'humidity_max'];
 /* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
 const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
 const ONOFF = { entity: { domain: ['switch', 'light', 'input_boolean'] } };
 const empty = (v) => v === undefined || v === null || v === '';
+/* Frei belegbare Schalter stehen im Formular als sw1, sw1_name, sw1_icon usw., in der Konfiguration unter switches. */
+const SLOTS = Array.from({ length: MAX_SWITCHES }, (_, i) => i + 1);
 
-/** Formulardaten sind flach, die gespeicherte Konfiguration ist gegliedert (entities, leveling). */
+/** Formulardaten sind flach, die gespeicherte Konfiguration ist gegliedert (entities, leveling, names, switches). */
 function flattenConfig(cfg) {
   const d = {};
   for (const k of TOP_FIELDS) if (!empty(cfg[k])) d[k] = cfg[k];
@@ -1143,6 +1253,14 @@ function flattenConfig(cfg) {
   for (const k of LV_FIELDS) if (cfg.leveling && !empty(cfg.leveling[k])) d[k] = Array.isArray(cfg.leveling[k]) ? cfg.leveling[k].join(', ') : cfg.leveling[k];
   for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
   if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
+  d.frost_warning = cfg.frost_warning !== false;
+  (Array.isArray(cfg.switches) ? cfg.switches : []).slice(0, MAX_SWITCHES).forEach((s, i) => {
+    const o = typeof s === 'string' ? { entity: s } : s || {};
+    if (empty(o.entity)) return;
+    d[`sw${i + 1}`] = o.entity;
+    if (!empty(o.name)) d[`sw${i + 1}_name`] = o.name;
+    if (!empty(o.icon)) d[`sw${i + 1}_icon`] = o.icon;
+  });
   return d;
 }
 function unflattenConfig(data, prev) {
@@ -1156,6 +1274,16 @@ function unflattenConfig(data, prev) {
   if (Object.keys(lv).length) out.leveling = lv;
   const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
   if (Object.keys(names).length) out.names = names;
+  if (data.frost_warning === false) out.frost_warning = false;
+  const sw = [];
+  for (const i of SLOTS) {
+    if (empty(data[`sw${i}`])) continue;
+    const o = { entity: data[`sw${i}`] }, n = data[`sw${i}_name`], ico = data[`sw${i}_icon`];
+    if (typeof n === 'string' && n.trim()) o.name = n.trim();
+    if (!empty(ico)) o.icon = ico;
+    sw.push(o);
+  }
+  if (sw.length) out.switches = sw;
   return out;
 }
 
@@ -1232,6 +1360,8 @@ class CamperCardEditor extends EditorBase {
       return L(c.vehicle === 'caravan' ? (V[c.outline].axles === 2 ? 'ed_base_tandem' : 'ed_base_caravan') : 'ed_base_wheels');
     }
     if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : L(ENTITY_KEYS[k]); }
+    const m = /^sw(\d)(?:_(name|icon))?$/.exec(s.name);
+    if (m) return `${L('ed_sw')} ${m[1]}${m[2] ? `: ${L('ed_sw_' + m[2])}` : ''}`;
     return s.title || L('ed_' + s.name);
   }
   _helper(s) {
@@ -1241,6 +1371,9 @@ class CamperCardEditor extends EditorBase {
     if (s.name === 'gas_availability' || s.name === 'gas2_availability') return L('ed_gas_help');
     if (s.name === NAME_FIELDS[0]) return L('ed_names_help');
     if (s.name === 'charger_toggle') return L('ed_charger_help');
+    if (s.name === 'battery_capacity') return L('ed_capacity_help');
+    if (s.name === 'frost_warning') return L('ed_frost_help');
+    if (s.name === 'sw1') return L('ed_sw_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -1261,6 +1394,7 @@ class CamperCardEditor extends EditorBase {
         { name: 'battery', selector: NUMERIC }, { name: 'battery_power', selector: NUMERIC }, { name: 'solar', selector: NUMERIC },
         { name: 'charger', selector: { entity: { domain: ['switch', 'input_boolean'] } } }, { name: 'charger_power', selector: NUMERIC },
         { name: 'charger_min_power', selector: num(0, 500, 1, 'W') }, { name: 'charger_toggle', selector: { boolean: {} } },
+        { name: 'battery_capacity', selector: num(0, 2000, 1, 'Ah') }, { name: 'battery_voltage', selector: num(6, 60, 0.1, 'V') },
       ]),
       g('g_water', [
         { name: 'fresh', selector: NUMERIC },
@@ -1268,11 +1402,21 @@ class CamperCardEditor extends EditorBase {
         { name: 'gas', selector: NUMERIC }, { name: 'gas_availability', selector: { entity: {} } },
         { name: 'gas2', selector: NUMERIC }, { name: 'gas2_availability', selector: { entity: {} } },
       ]),
-      g('g_climate', [{ name: 'temp_inside', selector: NUMERIC }, { name: 'temp_fridge', selector: NUMERIC }]),
+      g('g_climate', [
+        { name: 'temp_inside', selector: NUMERIC }, { name: 'humidity_inside', selector: NUMERIC }, { name: 'temp_outside', selector: NUMERIC },
+        { name: 'temp_fridge', selector: NUMERIC }, { name: 'temp_freezer', selector: NUMERIC },
+        { name: 'humidity_max', selector: num(40, 100, 1, '%') },
+        { name: 'frost_warning', selector: { boolean: {} } }, { name: 'frost_temp', selector: num(-10, 10, 0.5, '°C') },
+      ]),
       g('g_switches', [
         { name: 'pump', selector: ONOFF },
         { name: 'light_inside', selector: ONOFF }, { name: 'light_outside', selector: ONOFF },
       ]),
+      // Immer ein freier Platz mehr als belegt, höchstens MAX_SWITCHES.
+      g('g_extra', SLOTS.slice(0, Math.min(MAX_SWITCHES, c.switches.length + 1)).flatMap((i) => [
+        { name: `sw${i}`, selector: { entity: { domain: ['switch', 'light', 'input_boolean', 'fan'] } } },
+        { name: `sw${i}_name`, selector: { text: {} } }, { name: `sw${i}_icon`, selector: { icon: {} } },
+      ])),
       g('g_level', [
         { name: 'pitch', selector: NUMERIC }, { name: 'roll', selector: NUMERIC },
         { name: 'track', selector: num(50, 400, 1, 'cm') }, { name: 'base', selector: num(50, 1200, 1, 'cm') },

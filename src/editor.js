@@ -2,19 +2,22 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, GROUPS, DIMS, TYPE_NAME } from './vehicles.js';
 import { toDegrees, correctTilt } from './leveling.js';
-import { normalizeConfig, NAME_KEYS, ENTITY_KEYS } from './config.js';
+import { normalizeConfig, NAME_KEYS, ENTITY_KEYS, MAX_SWITCHES } from './config.js';
 
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
-  'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
+  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle'];
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
+  'frost_temp', 'humidity_max'];
 /* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
 const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
 const ONOFF = { entity: { domain: ['switch', 'light', 'input_boolean'] } };
 const empty = (v) => v === undefined || v === null || v === '';
+/* Frei belegbare Schalter stehen im Formular als sw1, sw1_name, sw1_icon usw., in der Konfiguration unter switches. */
+const SLOTS = Array.from({ length: MAX_SWITCHES }, (_, i) => i + 1);
 
-/** Formulardaten sind flach, die gespeicherte Konfiguration ist gegliedert (entities, leveling). */
+/** Formulardaten sind flach, die gespeicherte Konfiguration ist gegliedert (entities, leveling, names, switches). */
 export function flattenConfig(cfg) {
   const d = {};
   for (const k of TOP_FIELDS) if (!empty(cfg[k])) d[k] = cfg[k];
@@ -22,6 +25,14 @@ export function flattenConfig(cfg) {
   for (const k of LV_FIELDS) if (cfg.leveling && !empty(cfg.leveling[k])) d[k] = Array.isArray(cfg.leveling[k]) ? cfg.leveling[k].join(', ') : cfg.leveling[k];
   for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
   if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
+  d.frost_warning = cfg.frost_warning !== false;
+  (Array.isArray(cfg.switches) ? cfg.switches : []).slice(0, MAX_SWITCHES).forEach((s, i) => {
+    const o = typeof s === 'string' ? { entity: s } : s || {};
+    if (empty(o.entity)) return;
+    d[`sw${i + 1}`] = o.entity;
+    if (!empty(o.name)) d[`sw${i + 1}_name`] = o.name;
+    if (!empty(o.icon)) d[`sw${i + 1}_icon`] = o.icon;
+  });
   return d;
 }
 export function unflattenConfig(data, prev) {
@@ -35,6 +46,16 @@ export function unflattenConfig(data, prev) {
   if (Object.keys(lv).length) out.leveling = lv;
   const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
   if (Object.keys(names).length) out.names = names;
+  if (data.frost_warning === false) out.frost_warning = false;
+  const sw = [];
+  for (const i of SLOTS) {
+    if (empty(data[`sw${i}`])) continue;
+    const o = { entity: data[`sw${i}`] }, n = data[`sw${i}_name`], ico = data[`sw${i}_icon`];
+    if (typeof n === 'string' && n.trim()) o.name = n.trim();
+    if (!empty(ico)) o.icon = ico;
+    sw.push(o);
+  }
+  if (sw.length) out.switches = sw;
   return out;
 }
 
@@ -111,6 +132,8 @@ export class CamperCardEditor extends EditorBase {
       return L(c.vehicle === 'caravan' ? (V[c.outline].axles === 2 ? 'ed_base_tandem' : 'ed_base_caravan') : 'ed_base_wheels');
     }
     if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : L(ENTITY_KEYS[k]); }
+    const m = /^sw(\d)(?:_(name|icon))?$/.exec(s.name);
+    if (m) return `${L('ed_sw')} ${m[1]}${m[2] ? `: ${L('ed_sw_' + m[2])}` : ''}`;
     return s.title || L('ed_' + s.name);
   }
   _helper(s) {
@@ -120,6 +143,9 @@ export class CamperCardEditor extends EditorBase {
     if (s.name === 'gas_availability' || s.name === 'gas2_availability') return L('ed_gas_help');
     if (s.name === NAME_FIELDS[0]) return L('ed_names_help');
     if (s.name === 'charger_toggle') return L('ed_charger_help');
+    if (s.name === 'battery_capacity') return L('ed_capacity_help');
+    if (s.name === 'frost_warning') return L('ed_frost_help');
+    if (s.name === 'sw1') return L('ed_sw_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -140,6 +166,7 @@ export class CamperCardEditor extends EditorBase {
         { name: 'battery', selector: NUMERIC }, { name: 'battery_power', selector: NUMERIC }, { name: 'solar', selector: NUMERIC },
         { name: 'charger', selector: { entity: { domain: ['switch', 'input_boolean'] } } }, { name: 'charger_power', selector: NUMERIC },
         { name: 'charger_min_power', selector: num(0, 500, 1, 'W') }, { name: 'charger_toggle', selector: { boolean: {} } },
+        { name: 'battery_capacity', selector: num(0, 2000, 1, 'Ah') }, { name: 'battery_voltage', selector: num(6, 60, 0.1, 'V') },
       ]),
       g('g_water', [
         { name: 'fresh', selector: NUMERIC },
@@ -147,11 +174,21 @@ export class CamperCardEditor extends EditorBase {
         { name: 'gas', selector: NUMERIC }, { name: 'gas_availability', selector: { entity: {} } },
         { name: 'gas2', selector: NUMERIC }, { name: 'gas2_availability', selector: { entity: {} } },
       ]),
-      g('g_climate', [{ name: 'temp_inside', selector: NUMERIC }, { name: 'temp_fridge', selector: NUMERIC }]),
+      g('g_climate', [
+        { name: 'temp_inside', selector: NUMERIC }, { name: 'humidity_inside', selector: NUMERIC }, { name: 'temp_outside', selector: NUMERIC },
+        { name: 'temp_fridge', selector: NUMERIC }, { name: 'temp_freezer', selector: NUMERIC },
+        { name: 'humidity_max', selector: num(40, 100, 1, '%') },
+        { name: 'frost_warning', selector: { boolean: {} } }, { name: 'frost_temp', selector: num(-10, 10, 0.5, '°C') },
+      ]),
       g('g_switches', [
         { name: 'pump', selector: ONOFF },
         { name: 'light_inside', selector: ONOFF }, { name: 'light_outside', selector: ONOFF },
       ]),
+      // Immer ein freier Platz mehr als belegt, höchstens MAX_SWITCHES.
+      g('g_extra', SLOTS.slice(0, Math.min(MAX_SWITCHES, c.switches.length + 1)).flatMap((i) => [
+        { name: `sw${i}`, selector: { entity: { domain: ['switch', 'light', 'input_boolean', 'fan'] } } },
+        { name: `sw${i}_name`, selector: { text: {} } }, { name: `sw${i}_icon`, selector: { icon: {} } },
+      ])),
       g('g_level', [
         { name: 'pitch', selector: NUMERIC }, { name: 'roll', selector: NUMERIC },
         { name: 'track', selector: num(50, 400, 1, 'cm') }, { name: 'base', selector: num(50, 1200, 1, 'cm') },

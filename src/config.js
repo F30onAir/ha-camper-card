@@ -4,14 +4,18 @@ import { V, GROUPS, DIMS } from './vehicles.js';
 /** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
 export const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
-  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', temp_fridge: 'tempFridge',
+  fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', humidity_inside: 'humIn', temp_outside: 'tempOut',
+  temp_fridge: 'tempFridge', temp_freezer: 'tempFreezer',
   pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
 };
 export const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 export const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 export const VEHICLES = ['caravan', 'motorhome', 'van'];
 /** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
-export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'temp_fridge', 'pump', 'light_inside', 'light_outside'];
+export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
+  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside'];
+/** Höchstzahl frei belegbarer Schalter (switches:). */
+export const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
 const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
@@ -43,6 +47,14 @@ export function normalizeConfig(raw) {
   for (const key of NAME_KEYS) { const n = txt(nm[key]); if (n) names[ENTITY_KEYS[key]] = n; }
   const pumpName = txt(raw.pump_name);
   if (pumpName && !names.pump) names.pump = pumpName;
+  // Frei belegbare Schalter: Liste aus { entity, name, icon } oder nur der Entität als Text.
+  const switches = (Array.isArray(raw.switches) ? raw.switches : []).map((s) => {
+    const o = typeof s === 'string' ? { entity: s } : (s && typeof s === 'object' ? s : {});
+    const entity = typeof o.entity === 'string' && o.entity.includes('.') ? o.entity.trim() : null;
+    const icon = typeof o.icon === 'string' && /^[a-z]+:[a-z0-9-]+$/.test(o.icon.trim()) ? o.icon.trim() : null;
+    return entity ? { entity, name: txt(o.name), icon } : null;
+  }).filter(Boolean).slice(0, MAX_SWITCHES);
+  const cap = cfgNum(raw.battery_capacity, 0);
   const lv = raw.leveling && typeof raw.leveling === 'object' ? raw.leveling : {};
   const dims = DIMS[outline];
   const track = cfgNum(lv.track, null), base = cfgNum(lv.base, null);
@@ -56,6 +68,14 @@ export function normalizeConfig(raw) {
     names,
     charger_min_power: Math.max(0, cfgNum(raw.charger_min_power, 10)),
     charger_toggle: raw.charger_toggle === true,
+    // Restlaufzeit: Kapazität in Ah (ohne Angabe keine Restlaufzeit), Nennspannung für die Umrechnung von Watt.
+    battery_capacity: cap > 0 ? cap : null,
+    battery_voltage: cfgClamp(cfgNum(raw.battery_voltage, 12.8), 6, 60),
+    // Frostwarnung in °C, gilt für Tanks mit Wasser. Abschalten mit frost_warning: false.
+    frost_warning: raw.frost_warning !== false,
+    frost_temp: cfgClamp(cfgNum(raw.frost_temp, 3), -10, 10),
+    humidity_max: cfgClamp(cfgNum(raw.humidity_max, 70), 40, 100),
+    switches,
     entities,
     leveling: {
       track: track !== null && track > 0 ? track : dims[0],

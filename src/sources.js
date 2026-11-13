@@ -21,6 +21,21 @@ export function chargeSources(st, v, chargerMin) {
   };
 }
 
+/**
+ * Restlaufzeit der Batterie: beim Entladen bis leer, beim Laden bis voll.
+ * soc in %, power mit Einheit (W, kW, A oder mA; positiv heißt laden), capAh Kapazität in Ah, volt Nennspannung.
+ * Ergebnis { charging, hours } oder null, wenn sich nichts Sinnvolles sagen lässt (keine Kapazität, Ruhe, schon voll).
+ */
+export function batteryHours(soc, power, unit, capAh, volt) {
+  if (!(capAh > 0) || !(volt > 0) || !Number.isFinite(soc) || !Number.isFinite(power)) return null;
+  const u = String(unit || 'W').trim();
+  const w = u === 'kW' ? power * 1000 : u === 'A' ? power * volt : u === 'mA' ? power * volt / 1000 : power;
+  if (Math.abs(w) <= 5) return null;
+  const s = Math.min(100, Math.max(0, soc)), wh = capAh * volt;
+  if (w > 0 && s >= 99) return null;
+  return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
+}
+
 /** Kurzform für Anzeige und Tests: 'both', 'solar', 'charger', 'unknown' oder ''. */
 export function sourceKey(src) {
   if (!src.batCharging) return '';

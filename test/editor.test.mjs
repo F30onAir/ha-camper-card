@@ -53,3 +53,33 @@ test('Editor: pump_name aus 0.1 wird zu names.pump', () => {
   assert.equal(back.names.pump, 'Wasserhähne');
   assert.equal('pump_name' in back, false);
 });
+
+test('Editor 0.3: Schalter, Frostwarnung und neue Felder überstehen das Formular', () => {
+  const c3 = {
+    ...cfg, battery_capacity: 100, frost_warning: false, frost_temp: 2,
+    entities: { ...cfg.entities, temp_outside: 'sensor.out', humidity_inside: 'sensor.hum' },
+    switches: [{ entity: 'switch.fridge', name: 'Kühlschrank', icon: 'mdi:fridge' }, 'switch.boiler'],
+  };
+  const flat = flattenConfig(c3);
+  assert.equal(flat.sw1, 'switch.fridge');
+  assert.equal(flat.sw1_name, 'Kühlschrank');
+  assert.equal(flat.sw1_icon, 'mdi:fridge');
+  assert.equal(flat.sw2, 'switch.boiler');
+  assert.equal(flat.frost_warning, false);
+  const back = unflattenConfig(flat, c3);
+  assert.deepEqual(back.switches, [{ entity: 'switch.fridge', name: 'Kühlschrank', icon: 'mdi:fridge' }, { entity: 'switch.boiler' }]);
+  assert.equal(back.frost_warning, false);
+  assert.equal(back.battery_capacity, 100);
+  assert.equal(back.frost_temp, 2);
+  assert.equal(back.entities.temp_outside, 'sensor.out');
+  assert.equal(back.entities.humidity_inside, 'sensor.hum');
+});
+
+test('Editor 0.3: Frostwarnung an ist Standard und wird nicht gespeichert, leerer Schalter fällt weg', () => {
+  const flat = flattenConfig(cfg);
+  assert.equal(flat.frost_warning, true);
+  const back = unflattenConfig({ ...flat, sw1: '', sw1_name: 'Rest', sw2: 'switch.b' }, cfg);
+  assert.equal('frost_warning' in back, false);
+  assert.deepEqual(back.switches, [{ entity: 'switch.b' }]);
+  assert.equal('switches' in unflattenConfig(flat, cfg), false);
+});

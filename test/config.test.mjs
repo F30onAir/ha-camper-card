@@ -87,3 +87,46 @@ test('Kastenwagen (Ducato-Typ) ist ein eigener Van-Umriss, Hochdach bleibt der S
   assert.equal(c.leveling.base, 404);
   assert.equal(normalizeConfig({ vehicle: 'van' }).outline, 'van_high');
 });
+
+test('0.3: neue Sensoren für außen, Gefrierfach und Luftfeuchte, mit eigenen Namen', () => {
+  const c = normalizeConfig({
+    entities: { temp_outside: 'sensor.out', temp_freezer: 'sensor.frz', humidity_inside: 'sensor.hum' },
+    names: { temp_outside: 'Ute', temp_freezer: 'Frys', humidity_inside: 'Fukt' },
+  });
+  assert.deepEqual(c.entities, { temp_outside: 'sensor.out', temp_freezer: 'sensor.frz', humidity_inside: 'sensor.hum' });
+  assert.deepEqual(c.names, { tempOut: 'Ute', tempFreezer: 'Frys', humIn: 'Fukt' });
+});
+
+test('0.3: Restlaufzeit, Frostwarnung und Luftfeuchte haben sinnvolle Standardwerte', () => {
+  const c = normalizeConfig({});
+  assert.equal(c.battery_capacity, null);
+  assert.equal(c.battery_voltage, 12.8);
+  assert.equal(c.frost_warning, true);
+  assert.equal(c.frost_temp, 3);
+  assert.equal(c.humidity_max, 70);
+  assert.deepEqual(c.switches, []);
+  const d = normalizeConfig({ battery_capacity: '100', battery_voltage: 99, frost_warning: false, frost_temp: -40, humidity_max: 10 });
+  assert.equal(d.battery_capacity, 100);
+  assert.equal(d.battery_voltage, 60);
+  assert.equal(d.frost_warning, false);
+  assert.equal(d.frost_temp, -10);
+  assert.equal(d.humidity_max, 40);
+  assert.equal(normalizeConfig({ battery_capacity: -5 }).battery_capacity, null);
+});
+
+test('0.3: frei belegbare Schalter werden geprüft und begrenzt', () => {
+  const c = normalizeConfig({ switches: [
+    { entity: 'switch.kuehlschrank', name: '  Kühlschrank ', icon: 'mdi:fridge' },
+    'switch.boiler',
+    { entity: 'kaputt' }, { name: 'ohne Entität' }, null, 42,
+    { entity: 'light.vorzelt', icon: '<script>' },
+  ] });
+  assert.deepEqual(c.switches, [
+    { entity: 'switch.kuehlschrank', name: 'Kühlschrank', icon: 'mdi:fridge' },
+    { entity: 'switch.boiler', name: null, icon: null },
+    { entity: 'light.vorzelt', name: null, icon: null },
+  ]);
+  const many = normalizeConfig({ switches: Array.from({ length: 9 }, (_, i) => `switch.s${i}`) });
+  assert.equal(many.switches.length, 6);
+  assert.deepEqual(normalizeConfig({ switches: 'switch.x' }).switches, []);
+});

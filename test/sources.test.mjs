@@ -44,3 +44,29 @@ test('Ladegerät komplett offline', () => {
   assert.equal(s.charger, 'off');
   assert.equal(s.chargerActive, false);
 });
+
+import { batteryHours } from '../src/sources.js';
+const near = (a, b) => assert.ok(Math.abs(a - b) < 0.01, `${a} ≈ ${b}`);
+
+test('Restlaufzeit: Entladen mit Watt bis leer', () => {
+  const r = batteryHours(50, -64, 'W', 100, 12.8); // 640 Wh übrig, 64 W
+  assert.equal(r.charging, false);
+  near(r.hours, 10);
+});
+test('Restlaufzeit: Laden bis voll', () => {
+  const r = batteryHours(80, 128, 'W', 100, 12.8); // 256 Wh fehlen, 128 W
+  assert.equal(r.charging, true);
+  near(r.hours, 2);
+});
+test('Restlaufzeit: Strom in A und Leistung in kW', () => {
+  near(batteryHours(50, -5, 'A', 100, 12.8).hours, 10);
+  near(batteryHours(50, -0.064, 'kW', 100, 12.8).hours, 10);
+  near(batteryHours(50, -5000, 'mA', 100, 12.8).hours, 10);
+});
+test('Restlaufzeit: keine Angabe ohne Kapazität, in Ruhe, wenn voll oder ohne Werte', () => {
+  assert.equal(batteryHours(50, -64, 'W', null, 12.8), null);
+  assert.equal(batteryHours(50, 3, 'W', 100, 12.8), null);
+  assert.equal(batteryHours(99.5, 40, 'W', 100, 12.8), null);
+  assert.equal(batteryHours(NaN, -40, 'W', 100, 12.8), null);
+  assert.equal(batteryHours(50, 0.3, 'A', 100, 12.8), null); // 3,8 W gilt als Ruhe
+});

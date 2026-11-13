@@ -4,16 +4,19 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 *Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
 
-> **Status: early test version (0.2.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+> **Status: early test version (0.3.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
 
 ## Features
 
 - Side view with 9 outlines: caravan (rounded, angular, twin axle), motorhome (semi-integrated, alcove, integrated), camper van (high roof, pop-up roof, panel van of the Ducato / Boxer / Jumper type)
-- Fresh water, grey water (motorhome and van), one or two gas bottles, battery, solar, charger, temperatures
+- Fresh water, grey water (motorhome and van), one or two gas bottles, battery, solar, charger
+- Temperatures inside, outside, fridge and freezer, inside humidity with a "too humid" hint
+- Remaining battery time ("lasts approx. 10 h", "full in approx. 2 h") from charge, power and capacity
+- Frost warning when there is water in a tank and it gets too cold
 - Rename every tile in your own language, for example "Färskvatten" or "Gas left"
-- Windows light up with the inside light, outside light, water pump or taps as a switch
+- Windows light up with the inside light, outside light, water pump or taps as a switch, plus up to 6 switches of your own (fridge, heater, boiler …)
 - Charge source: solar, charger, both or unknown, derived from your sensors
 - Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
 - Sensors that are assigned but offline show "offline", unassigned parts are hidden
@@ -34,14 +37,24 @@ The card is only the display. It has no integration of its own and talks to no d
 | `gas` | sensor | % | gas bottle level sensor |
 | `gas_availability` | any | – | raw sensor behind a gas template, shows "offline" instead of 0 % |
 | `gas2`, `gas2_availability` | sensor, any | % | second gas bottle, shown as "Gas 1" and "Gas 2" |
-| `temp_inside`, `temp_fridge` | sensor | °C or °F | any temperature sensor |
+| `temp_inside`, `temp_outside`, `temp_fridge`, `temp_freezer` | sensor | °C or °F | any temperature sensor |
+| `humidity_inside` | sensor | % | any humidity sensor, shown with the inside temperature |
 | `pump` | switch or light | on/off | water pump or taps, tap the card to switch |
 | `light_inside`, `light_outside` | switch or light | on/off | lights, tap the card to switch |
+| `switches:` (list) | switch, light, input_boolean, fan | on/off | up to 6 switches of your own, tap to switch |
 | `pitch`, `roll` | sensor | ° (also %, rad, mrad) | tilt sensor, lengthwise and sideways |
 
 Number fields also take `input_number` and `number`, switch fields also `input_boolean`. With helpers you can try the card before any hardware is installed.
 
 **Tile names.** Every tile and switch can get your own label under `names:` (in the editor: "Tile names"), in any language. Empty means the default name. Status texts and the levelling instructions stay in English or German.
+
+**Remaining battery time.** Set `battery_capacity` (Ah) and the card estimates from `battery` (%) and `battery_power` how long the battery lasts when discharging, or when it is full when charging. `battery_power` may be in W, kW or A (A works without conversion), `battery_voltage` defaults to 12.8 V. Below 5 W the card shows no time. It is an estimate based on the current power, a BMS with its own "time remaining" sensor may be more precise.
+
+**Frost warning.** When a tank holds water (more than 2 %) and the temperature falls below `frost_temp` (default 3 °C), the tank tile says "Frost risk" and the tank in the side view gets a snowflake. Tanks inside the body use the inside temperature first, underfloor tanks the outside temperature first. Turn it off with `frost_warning: false`.
+
+**Humidity.** `humidity_inside` appears below the inside temperature, or as its own tile without one. From `humidity_max` (default 70 %) the card shows "too humid".
+
+**Your own switches.** Under `switches:` (in the editor: "More switches") you can add up to 6 entities, each with an optional `name` and `icon` (for example `mdi:fridge`). Without a name the card uses the name from Home Assistant.
 
 **Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. The card shows solar, charger, both, or "unknown" if no source explains the charging.
 
@@ -103,7 +116,7 @@ If a direction is reversed or the axes are swapped, fix it in the card editor (i
 
 </details>
 
-*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen, jede Kachel lässt sich unter `names:` selbst benennen. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
+*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen, jede Kachel lässt sich unter `names:` selbst benennen. Neu in 0.3: Temperatur außen und Gefrierfach, Luftfeuchte innen mit Hinweis „zu feucht“, Restlaufzeit der Batterie (mit `battery_capacity` in Ah), Frostwarnung für Tanks mit Wasser und bis zu sechs eigene Schalter unter `switches:`. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
 
 ## Screenshots
 
@@ -137,6 +150,10 @@ name: Wohnwagen
 vehicle: caravan          # caravan | motorhome | van
 outline: caravan_round    # caravan_round, caravan_box, caravan_tandem, mh_semi, mh_alcove, mh_integrated, van_high, van_popup, van_ducato
 offline: grey             # grey | hide (assigned but offline)
+battery_capacity: 100     # Ah, optional, shows the remaining time
+battery_voltage: 12.8     # V, nominal voltage, default 12.8
+frost_temp: 3             # °C, frost warning below (frost_warning: false turns it off)
+humidity_max: 70          # %, "too humid" from here
 entities:
   battery: sensor.battery_soc
   battery_power: sensor.battery_power      # W, positive = charging
@@ -149,12 +166,20 @@ entities:
   gas_availability: sensor.gas_raw_sensor  # shows "offline" instead of 0 % when this one is unavailable
   gas2: sensor.gas_bottle_2_percent        # optional second bottle
   temp_inside: sensor.inside_temperature
+  humidity_inside: sensor.inside_humidity
+  temp_outside: sensor.outside_temperature
   temp_fridge: sensor.fridge_temperature
+  temp_freezer: sensor.freezer_temperature
   pump: switch.water_pump
   light_inside: light.inside
   light_outside: light.awning
   pitch: sensor.tilt_length                # degrees (also %, rad, mrad)
   roll: sensor.tilt_side
+switches:                 # optional, up to 6
+  - entity: switch.fridge
+    name: Fridge
+    icon: mdi:fridge
+  - switch.water_heater   # short form, name from Home Assistant
 names:                    # optional, any language, empty = default
   fresh: Färskvatten
   gas: Gas left

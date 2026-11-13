@@ -2,7 +2,7 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, TYPE_NAME } from './vehicles.js';
 import { DEG, calcLeveling, round5, nearestStep, toDegrees, correctTilt } from './leveling.js';
-import { chargeSources } from './sources.js';
+import { chargeSources, batteryHours } from './sources.js';
 import { normalizeConfig, ENTITY_KEYS, CFG_OF, BOOL_KEYS } from './config.js';
 
 const VERSION = '__VERSION__';
@@ -35,6 +35,33 @@ function nameOf(k, def) {
 }
 /* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
 const shortOf = (k, def) => { const own = C.cfg.names && C.cfg.names[k]; return own ? (own.length <= 10 ? esc(own) : '') : def; };
+/* Temperatur in °C, auch wenn der Sensor in °F misst. */
+const degC = (k) => (/F/.test(unitOf(k, '°C')) ? (val(k) - 32) * 5 / 9 : val(k));
+/* Frostgefahr für einen Tank mit Wasser. Für Tanks im Aufbau zählt zuerst die Innentemperatur, für Tanks unter dem Boden
+   zuerst die Außentemperatur. Ergebnis: Schlüssel der maßgeblichen Temperatur oder null. */
+function frostOf(k) {
+  const b = C.d[k];
+  if (!C.cfg.frost_warning || !b || st(k) !== 'ok' || val(k) <= 2) return null;
+  for (const tk of b.under ? ['tempOut', 'tempIn'] : ['tempIn', 'tempOut']) if (st(tk) === 'ok') return degC(tk) < C.cfg.frost_temp ? tk : null;
+  return null;
+}
+/* Zahl und Einheit mit festem Leerzeichen, damit die Einheit nicht allein in die nächste Zeile rutscht. */
+const NB = '\u00a0';
+const frostTxt = (tk) => `${t('frost')} · ${nf(val(tk), 1)}${NB}${esc(unitOf(tk, '°C'))}`;
+/* Dauer kurz und lesbar: Minuten, halbe Stunden, Stunden, Tage. */
+function dur(h) {
+  if (h < 0.95) return `${Math.min(55, Math.max(5, Math.round(h * 12) * 5))}${NB}${t('uMin')}`;
+  if (h < 10) { const r = Math.max(1, Math.round(h * 2) / 2); return `${nf(r, Number.isInteger(r) ? 0 : 1)}${NB}${t('uH')}`; }
+  if (h < 48) return `${nf(Math.round(h))}${NB}${t('uH')}`;
+  const d = Math.round(h / 24);
+  return d > 30 ? t('over30') : `${nf(d)}${NB}${t('uDays')}`;
+}
+/* Restlaufzeit der Batterie als Text, leer ohne Kapazität, in Ruhe oder wenn ein Wert fehlt. */
+function runTxt() {
+  if (st('battery') !== 'ok' || st('power') !== 'ok') return '';
+  const r = batteryHours(val('battery'), val('power'), unitOf('power', 'W'), C.cfg.battery_capacity, C.cfg.battery_voltage);
+  return r ? t(r.charging ? 'runFull' : 'runLeft').replace('{}', dur(r.hours)) : '';
+}
 
 /** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
@@ -70,6 +97,9 @@ const IC = {
   lamp: '<path d="M5 21h14M12 21V10"/><path d="M8 10h8l-1.5-6h-5z"/>',
   plug: '<path d="M9 3v5M15 3v5"/><path d="M6.5 8h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5V21"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', warn: '<path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5M12 17.4v.1"/>',
+  snow: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>',
+  hum: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/><path d="M9.6 16.6l4.8-5.2"/><circle cx="9.9" cy="12.4" r=".8"/><circle cx="14.1" cy="15.8" r=".8"/>',
+  power: '<path d="M12 3.5v8"/><path d="M7 6.8a7 7 0 1 0 10 0"/>',
 };
 const ic = (n, s = 20) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
@@ -262,8 +292,10 @@ function vehicleEl(d) {
   }
   (d.cut || []).forEach((c, j) => { s += cutEl(c, j); });
   (d.wheelhouse || []).forEach((w) => { const yb = w.y + w.h; s += `<path d="M${w.x} ${yb} L${w.x} ${yb - 14} Q${w.x} ${w.y} ${w.x + w.w / 2} ${w.y} Q${w.x + w.w} ${w.y} ${w.x + w.w} ${yb - 14} L${w.x + w.w} ${yb} Z" fill="var(--cut-line)" opacity=".5"/>`; });
-  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && val('fresh') <= 10);
-  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && val('grey') >= 85);
+  // Frostgefahr: Rand in Warnfarbe und eine kleine Schneeflocke oben rechts im Tank.
+  const snow = (b) => `<g class="not-small" transform="translate(${b.x + b.w - 18} ${b.y + 3}) scale(.6)" fill="none" stroke="var(--c-cold)" stroke-width="2.6" stroke-linecap="round">${IC.snow}</g>`;
+  if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && (val('fresh') <= 10 || !!frostOf('fresh'))) + (frostOf('fresh') ? snow(d.fresh) : '');
+  if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && (val('grey') >= 85 || !!frostOf('grey'))) + (frostOf('grey') ? snow(d.grey) : '');
   // Gas: eine Flasche an ihrem Platz, zwei schmalere nebeneinander im selben Fach.
   const bottles = ['gas', 'gas2'].filter((k) => st(k) !== 'none');
   const gcx = d.gas.x + d.gas.w / 2, gw = 19;
@@ -344,7 +376,8 @@ function tilesHTML() {
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
     const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
-    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sTxt, src.unknown));
+    const sub = [runTxt(), sTxt].filter(Boolean).join(' · ');
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
   } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   const so = st('solar');
   if (so === 'off') out.push(offTile('solar', 'sun', nameOf('solar')));
@@ -356,35 +389,53 @@ function tilesHTML() {
     const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
     out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
-  const f = st('fresh');
+  const f = st('fresh'), ff = frostOf('fresh');
   if (f === 'off') out.push(offTile('fresh', 'drop', nameOf('fresh')));
-  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c))); }
-  const g = st('grey');
+  else if (f === 'ok') { const c = val('fresh') <= 10 ? 'var(--c-warn)' : 'var(--c-water)'; out.push(tile('fresh', 'drop', c, nameOf('fresh'), nf(val('fresh')), '%', barOf(val('fresh'), c), ff ? frostTxt(ff) : '', true)); }
+  const g = st('grey'), gf = frostOf('grey');
   if (g === 'off') out.push(offTile('grey', 'grey', nameOf('grey')));
-  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c))); }
+  else if (g === 'ok') { const c = val('grey') >= 85 ? 'var(--c-warn)' : 'var(--c-grey)'; out.push(tile('grey', 'grey', c, nameOf('grey'), nf(val('grey')), '%', barOf(val('grey'), c), gf ? frostTxt(gf) : '', true)); }
   for (const k of ['gas', 'gas2']) {
     const ga = st(k);
     if (ga === 'off') out.push(offTile(k, 'gas', nameOf(k)));
     else if (ga === 'ok') { const c = val(k) <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile(k, 'gas', c, nameOf(k), nf(val(k)), '%', barOf(val(k), c))); }
   }
-  const ti = st('tempIn');
+  // Innen: Temperatur mit der Luftfeuchte als zweiter Zeile. Ohne Innentemperatur bekommt die Luftfeuchte eine eigene Kachel.
+  const ti = st('tempIn'), hu = st('humIn'), humHigh = hu === 'ok' && val('humIn') >= C.cfg.humidity_max;
+  const humVal = () => `${nf(val('humIn'))}${NB}${esc(unitOf('humIn', '%'))}`;
   if (ti === 'off') out.push(offTile('tempIn', 'temp', nameOf('tempIn')));
-  else if (ti === 'ok') out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C')));
-  const tf = st('tempFridge');
-  if (tf === 'off') out.push(offTile('tempFridge', 'fridge', nameOf('tempFridge')));
-  else if (tf === 'ok') out.push(tile('tempFridge', 'fridge', 'var(--c-cold)', nameOf('tempFridge'), nf(val('tempFridge'), 1), unitOf('tempFridge', '°C')));
+  else if (ti === 'ok') {
+    const sub = hu === 'ok' ? (humHigh ? `${humVal()} · ${t('humHigh')}` : `${humVal()} ${nameOf('humIn')}`) : hu === 'off' ? `${nameOf('humIn')} ${t('offline')}` : '';
+    out.push(tile('tempIn', 'temp', 'var(--c-temp)', nameOf('tempIn'), nf(val('tempIn'), 1), unitOf('tempIn', '°C'), '', sub, humHigh));
+  }
+  if (ti !== 'ok' && hu === 'off') out.push(offTile('humIn', 'hum', nameOf('humIn')));
+  else if (ti !== 'ok' && hu === 'ok') out.push(tile('humIn', 'hum', humHigh ? 'var(--c-warn)' : 'var(--c-out)', nameOf('humIn'), nf(val('humIn')), unitOf('humIn', '%'), '', humHigh ? `${t('humHigh')}, ${t('airOut')}` : '', true));
+  for (const [k, icon, c] of [['tempOut', 'temp', 'var(--c-out)'], ['tempFridge', 'fridge', 'var(--c-cold)'], ['tempFreezer', 'snow', 'var(--c-cold)']]) {
+    const s = st(k);
+    if (s === 'off') out.push(offTile(k, icon, nameOf(k)));
+    else if (s === 'ok') out.push(tile(k, icon, c, nameOf(k), nf(val(k), 1), unitOf(k, '°C')));
+  }
   return out;
 }
+const actBtn = (attrs, c, on, dis, ico, label, sub, cls = '') => `<button class="act ${on ? 'on' : ''} ${dis ? 'dis' : ''}" style="--c:${c}" data-a="toggle" ${attrs} ${dis ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ico}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
 function actsHTML() {
   const defs = [['pump', 'pump', 'var(--c-pump)'], ['lightIn', 'bulb', 'var(--c-light)'], ['lightOut', 'lamp', 'var(--c-light)'], ['charger', 'plug', 'var(--c-grid)']];
-  return defs.map(([k, icon, c]) => {
+  const fixed = defs.map(([k, icon, c]) => {
     const s = st(k);
     if (s === 'none' || (k === 'charger' && !C.cfg.charger_toggle)) return '';
     const on = s === 'ok' && val(k);
     let sub = s === 'off' ? t('offline') : (on ? t('on') : t('off')), cls = '';
     if (k === 'pump' && s === 'ok' && st('fresh') === 'ok' && val('fresh') <= 5) { sub = t('tankLow'); cls = 'warn'; }
-    const label = nameOf(k);
-    return `<button class="act ${on ? 'on' : ''} ${s === 'off' ? 'dis' : ''}" style="--c:${c}" data-a="toggle" data-k="${k}" data-fid="act-${k}" ${s === 'off' ? 'disabled' : ''} aria-pressed="${!!on}"><span class="a-i">${ic(icon, 17)}</span><span class="a-t">${label}<small class="${cls}">${sub}</small></span></button>`;
+    return actBtn(`data-k="${k}" data-fid="act-${k}"`, c, on, s === 'off', ic(icon, 17), nameOf(k), sub, cls);
+  }).join('');
+  // Frei belegbare Schalter: Name aus der Konfiguration, sonst aus Home Assistant. Symbol über ha-icon, sonst ein eigenes.
+  const haIcon = typeof customElements !== 'undefined' && !!customElements.get('ha-icon');
+  return fixed + C.cfg.switches.map((w, i) => {
+    const s = C.hass.states[w.entity], off = isOff(s), a = (s && s.attributes) || {};
+    if (off && C.cfg.offline === 'hide') return '';
+    const on = !off && s.state === 'on', icon = w.icon || a.icon;
+    const ico = icon && haIcon ? `<ha-icon icon="${esc(icon)}"></ha-icon>` : ic('power', 17);
+    return actBtn(`data-sw="${i}" data-fid="act-sw${i}"`, 'var(--c-sw)', on, off, ico, esc(w.name || a.friendly_name || w.entity), off ? t('offline') : on ? t('on') : t('off'));
   }).join('');
 }
 function overviewHTML(T) {
@@ -529,7 +580,7 @@ const CSS = `
 *,*::before,*::after{box-sizing:border-box}
 :host{display:block;
   --c-water:#2a8ade;--c-grey:#7f8263;--c-gas:#db7f12;--c-bat:#2a9a57;--c-bat-mid:#d99a12;--c-bat-low:#d4443a;--c-sun:#d99e00;--c-grid:#6f58d6;--c-light:#ee9f2c;
-  --c-pump:#1f88d0;--c-temp:#d9662a;--c-cold:#1b93b8;--c-ok:#23935a;--c-warn:#c9551f;
+  --c-pump:#1f88d0;--c-temp:#d9662a;--c-cold:#1b93b8;--c-ok:#23935a;--c-warn:#c9551f;--c-out:#4f7fa3;--c-sw:#1f9a8a;
   --scene-top:#e6eff6;--scene-bottom:#f5f7f8;--ground:#c3cbc2;--ground-line:#8a9389;
   --body:#fdfdfc;--body-shade:#e3e7ea;--body-line:#a5acb3;--body-hi:#ffffff;--skirt:#66707a;--skirt-2:#4c555e;
   --frame:#20262c;--glass-a:#4a5664;--glass-b:#1d242b;--cut-a:#d0d6db;--cut-b:#eceff2;--cut-line:#a7afb7;
@@ -537,7 +588,7 @@ const CSS = `
   --tent:#c9bca2;--tent-line:#a89a7f;--seg-bg:rgba(127,127,127,.14);--seg-on:var(--card-background-color,#fff)}
 :host([dark]){
   --c-water:#4aa5f0;--c-grey:#a5a884;--c-gas:#f09a33;--c-bat:#45bd77;--c-bat-mid:#e8b234;--c-bat-low:#ef6a5e;--c-sun:#f2c230;--c-grid:#a493f5;--c-light:#ffbe5c;
-  --c-pump:#4db3ee;--c-temp:#f0895a;--c-cold:#45bedd;--c-ok:#45bd77;--c-warn:#f0895a;
+  --c-pump:#4db3ee;--c-temp:#f0895a;--c-cold:#45bedd;--c-ok:#45bd77;--c-warn:#f0895a;--c-out:#86b4d6;--c-sw:#45c2b0;
   --scene-top:#1a222b;--scene-bottom:#15191e;--ground:#323c36;--ground-line:#5e6a61;
   --body:#525a63;--body-shade:#3b4249;--body-line:#6d7680;--body-hi:#687280;--skirt:#2b3137;--skirt-2:#1f2328;
   --frame:#0a0c0e;--glass-a:#25303a;--glass-b:#0c1014;--cut-a:#15191d;--cut-b:#20252a;--cut-line:#3d4650;
@@ -579,7 +630,7 @@ svg:not([data-small]) .only-small{display:none}
 .t-l{font-size:12px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .t-v{font-size:19px;font-weight:500;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 .t-v small{font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:2px}
-.t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+.t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);overflow:hidden;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .t-s.warn{color:var(--c-warn)}
 .t-b{grid-column:1/-1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--secondary-text-color) 18%,transparent);overflow:hidden;margin-top:7px}
 .t-b i{display:block;height:100%;border-radius:2px;background:var(--c);transition:width .3s}
@@ -593,6 +644,7 @@ svg:not([data-small]) .only-small{display:none}
 .act.on{background:color-mix(in srgb,var(--c) 13%,transparent);border-color:color-mix(in srgb,var(--c) 42%,transparent)}
 .act.on .a-i{background:var(--c);color:var(--card-background-color,#fff)}
 .act.dis{opacity:.6;cursor:default}
+.a-i ha-icon{--mdc-icon-size:17px;display:flex}
 .a-t{min-width:0;font-size:13px;line-height:1.2}
 .a-t small{display:block;font-size:11.5px;color:var(--secondary-text-color)}
 .a-t small.warn{color:var(--c-warn)}
@@ -671,6 +723,7 @@ export class CamperCard extends HTMLElement {
     const h = this._hass, c = this._config;
     const parts = [h.themes && h.themes.darkMode ? 'd' : 'l', (h.locale && h.locale.language) || h.language || ''];
     for (const id of Object.values(c.entities)) { const s = h.states[id]; parts.push(s ? `${s.state}|${(s.attributes && s.attributes.unit_of_measurement) || ''}` : '-'); }
+    for (const w of c.switches) { const s = h.states[w.entity]; parts.push(s ? `${s.state}|${(s.attributes && (s.attributes.friendly_name + s.attributes.icon)) || ''}` : '-'); }
     return parts.join(';');
   }
   _render() {
@@ -699,7 +752,8 @@ export class CamperCard extends HTMLElement {
     if (!el) return;
     if (el.dataset.a === 'view') { this._ui.view = el.dataset.v; this._render(); return; }
     if (el.dataset.a === 'toggle') {
-      const id = this._config.entities[CFG_OF[el.dataset.k]];
+      const sw = el.dataset.sw !== undefined ? this._config.switches[+el.dataset.sw] : null;
+      const id = sw ? sw.entity : this._config.entities[CFG_OF[el.dataset.k]];
       if (id && this._hass) this._hass.callService('homeassistant', 'toggle', { entity_id: id });
       return;
     }
