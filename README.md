@@ -4,7 +4,7 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 *Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
 
-> **Status: early test version (0.3.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+> **Status: early test version (0.3.1).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
 
@@ -132,15 +132,19 @@ The images are rendered from the real card with sample data (`docs/shots.html`).
 
 ## Installation (HACS / Marketplace)
 
-From Home Assistant 2026.11 HACS is built in as the **Marketplace**, the steps stay the same. The card is not in the default catalog yet. Add it as a custom repository:
+From Home Assistant 2026.11 HACS is built in as the **Marketplace**, the steps stay the same.
+
+1. Open HACS or Marketplace and search for **Camper Card**
+2. Open **Camper Card** and download it
+3. Reload the browser (in the companion app: reset the frontend cache in the app settings)
+4. Edit a dashboard → **Add card** → **Camper Card**, then pick your entities in the editor
+
+**If the search does not find it** (the card is still waiting to be added to the default catalog), add it as a custom repository first and then continue with step 2:
 
 1. HACS or Marketplace → ⋮ (top right) → **Custom repositories**
 2. Repository: `https://github.com/F30onAir/ha-camper-card`, type: **Dashboard**
-3. Open **Camper Card** and download it
-4. Reload the browser (in the companion app: reset the frontend cache in the app settings)
-5. Edit a dashboard → **Add card** → **Camper Card**, then pick your entities in the editor
 
-*Deutsch:* HACS bzw. ab Home Assistant 2026.11 Marketplace → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard** → **Camper Card** herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**.
+*Deutsch:* In HACS bzw. ab Home Assistant 2026.11 im Marketplace nach **Camper Card** suchen → herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**. Findet die Suche die Karte noch nicht: ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard**, danach wie oben herunterladen.
 
 ## Example
 

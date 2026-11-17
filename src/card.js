@@ -222,7 +222,7 @@ function solarEl(d, state, w) {
   const s = d.solar, x = s.x, y = s.y, wd = s.w, on = state === 'ok' && w > 5, dx = 14, hg = 12;
   let cells = ''; for (let i = 1; i < 6; i++) { const px = x + wd * i / 6; cells += `<line x1="${px}" y1="${y - 2}" x2="${px - dx}" y2="${y - 2 - hg}"/>`; }
   const rot = s.rot ? `transform="rotate(${s.rot} ${x} ${y})"` : '';
-  const lbl = state === 'off' ? t('offline') : `${nf(w)} ${unitOf('solar', 'W')}`;
+  const lbl = state === 'off' ? t('offline') : `${nf(w)} ${esc(unitOf('solar', 'W'))}`;
   return `<g ${rot}><path d="M${x + 6} ${y} L${x + 6} ${y - 3} M${x + wd - 8} ${y} L${x + wd - 8} ${y - 3}" stroke="var(--metal)" stroke-width="3"/>
     <path d="M${x} ${y - 2} L${x + wd} ${y - 2} L${x + wd - dx} ${y - 2 - hg} L${x - dx} ${y - 2 - hg} Z" fill="${state === 'off' ? 'var(--cut-line)' : 'url(#gSolar)'}" stroke="var(--rim-2)" stroke-width="1.6" stroke-linejoin="round"/>
     <g stroke="rgba(255,255,255,.28)" stroke-width=".9">${cells}<line x1="${x - dx / 2}" y1="${y - 2 - hg / 2}" x2="${x + wd - dx / 2}" y2="${y - 2 - hg / 2}"/></g>
