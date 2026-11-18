@@ -197,6 +197,8 @@ leveling:
   tolerance: 0.2    # degrees counted as level
 ```
 
+Battery, solar and charger power readings in kW are converted to W for display and charging-source detection.
+
 Tank and battery sensors are expected in percent. Sign convention for tilt: `pitch > 0` means nose or front up, `roll > 0` means right side up (in driving direction). Use `invert_pitch`, `invert_roll`, `swap_axes` and the zero-point button in the editor to match your sensor.
 
 ## Support

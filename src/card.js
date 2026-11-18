@@ -75,6 +75,10 @@ function readStates(hass, cfg) {
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
     out.st[k] = 'ok'; out.v[k] = n; out.unit[k] = s.attributes && s.attributes.unit_of_measurement;
+    // Charging thresholds and source detection use watts, regardless of sensor display units.
+    if (['power', 'solar', 'chargerPower'].includes(k) && out.unit[k] === 'kW') {
+      out.v[k] *= 1000; out.unit[k] = 'W';
+    }
   }
   for (const [k, ak] of [['gas', 'gas_availability'], ['gas2', 'gas2_availability']]) {
     const ga = cfg.entities[ak];
