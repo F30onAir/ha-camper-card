@@ -742,7 +742,7 @@ export class CamperCard extends HTMLElement {
       const v = this._ui.view;
       const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       this._root.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
-      if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus(); }
+      if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
     } finally { C = null; }
     this._fit();
     this._startAnim();
