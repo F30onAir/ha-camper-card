@@ -18,7 +18,7 @@ export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas',
 export const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
-const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
+const cfgNum = (x, d) => { if (x === null || x === undefined) return d; const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 /** Keilstufen aus Text („3, 6, 9“), Zahl oder Liste. Ergebnis: aufsteigende positive Zahlen. */
