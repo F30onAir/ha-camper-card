@@ -624,10 +624,11 @@ svg:not([data-small]) .only-small{display:none}
 .hero-note{position:absolute;left:10px;right:10px;bottom:5px;font-size:10.5px;color:var(--secondary-text-color);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tiles{display:flex;flex-wrap:wrap;gap:8px;padding:8px 8px 0}
 .tile{--c:var(--secondary-text-color);flex:1 1 150px;display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;align-content:start;padding:9px 11px;border:1px solid var(--divider-color);border-radius:12px;min-width:0}
+@container card (max-width:559px){.tile{flex-basis:max(150px,calc(50% - 4px))}}
 .tile[data-mi]{cursor:pointer}
 .tile[data-mi]:hover{background:color-mix(in srgb,var(--secondary-text-color) 7%,transparent)}
 .t-i{grid-row:span 2;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
-.t-l{font-size:12px;color:var(--secondary-text-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.t-l{font-size:12px;color:var(--secondary-text-color);white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 .t-v{font-size:19px;font-weight:500;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
 .t-v small{font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:2px}
 .t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);overflow:hidden;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
