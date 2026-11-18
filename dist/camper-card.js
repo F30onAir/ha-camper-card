@@ -481,6 +481,7 @@ const NB = '\u00a0';
 const frostTxt = (tk) => `${t('frost')} · ${nf(val(tk), 1)}${NB}${esc(unitOf(tk, '°C'))}`;
 /* Dauer kurz und lesbar: Minuten, halbe Stunden, Stunden, Tage. */
 function dur(h) {
+  if (h <= 0) return `0${NB}${t('uMin')}`;
   if (h < 0.95) return `${Math.min(55, Math.max(5, Math.round(h * 12) * 5))}${NB}${t('uMin')}`;
   if (h < 10) { const r = Math.max(1, Math.round(h * 2) / 2); return `${nf(r, Number.isInteger(r) ? 0 : 1)}${NB}${t('uH')}`; }
   if (h < 48) return `${nf(Math.round(h))}${NB}${t('uH')}`;
