@@ -299,8 +299,8 @@ function chargeSources(st, v, chargerMin) {
   const batCharging = pw !== null && pw > 5;
   const solarActive = st.solar === 'ok' && v.solar > 5;
   let chargerActive = false;
-  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger !== 'ok' || !!v.charger);
-  else if (st.charger === 'ok') chargerActive = !!v.charger;
+  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger === 'none' || (st.charger === 'ok' && !!v.charger));
+  else if (st.chargerPower === 'none' && st.charger === 'ok') chargerActive = !!v.charger;
   const charger = (st.charger === 'none' && st.chargerPower === 'none') ? 'none'
     : (st.charger === 'ok' || st.chargerPower === 'ok') ? 'ok' : 'off';
   const anySource = st.solar !== 'none' || charger !== 'none';
