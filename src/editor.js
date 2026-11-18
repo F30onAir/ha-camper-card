@@ -36,7 +36,9 @@ export function flattenConfig(cfg) {
   return d;
 }
 export function unflattenConfig(data, prev) {
-  const out = { type: (prev && prev.type) || 'custom:camper-card' };
+  const out = { ...prev, type: (prev && prev.type) || 'custom:camper-card' };
+  // Keep dashboard/integration options, but rebuild the fields owned by this editor.
+  for (const k of [...TOP_FIELDS, 'entities', 'leveling', 'names', 'switches', 'pump_name', 'frost_warning']) delete out[k];
   for (const k of TOP_FIELDS) if (!empty(data[k]) && data[k] !== false) out[k] = data[k];
   const ent = {}; for (const k of ENT_FIELDS) if (!empty(data[k])) ent[k] = data[k];
   const lv = {}; for (const k of LV_FIELDS) if (!empty(data[k]) && data[k] !== false) lv[k] = data[k];
