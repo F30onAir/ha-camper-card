@@ -83,3 +83,29 @@ test('Editor 0.3: Frostwarnung an ist Standard und wird nicht gespeichert, leere
   assert.deepEqual(back.switches, [{ entity: 'switch.b' }]);
   assert.equal('switches' in unflattenConfig(flat, cfg), false);
 });
+
+
+test('Editor preserves dashboard settings while changing and clearing card fields', () => {
+  const original = {
+    ...cfg, name: 'Old name', pump_name: 'Legacy pump',
+    grid_options: { columns: 12, rows: 8 },
+    visibility: [{ condition: 'state', entity: 'input_boolean.show_camper', state: 'on' }],
+    view_layout: { position: 'main' },
+    card_mod: { style: 'ha-card { border-radius: 0; }' },
+  };
+  const saved = structuredClone(original);
+  const updated = unflattenConfig({ ...flattenConfig(original), name: 'New name', fresh: '' }, original);
+  for (const key of ['grid_options', 'visibility', 'view_layout', 'card_mod']) {
+    assert.deepEqual(updated[key], original[key], key);
+  }
+  assert.equal(updated.name, 'New name');
+  assert.equal(updated.entities.fresh, undefined);
+  assert.equal(updated.pump_name, undefined);
+  assert.equal(updated.names.pump, 'Legacy pump');
+  assert.deepEqual(original, saved, 'The previous config is not mutated');
+  const cleared = unflattenConfig({ ...flattenConfig(updated), name: '', name_pump: '', offset_pitch: '' }, updated);
+  assert.equal(cleared.name, undefined);
+  assert.equal(cleared.names, undefined);
+  assert.equal(cleared.leveling.offset_pitch, undefined);
+  assert.deepEqual(cleared.visibility, original.visibility);
+});
