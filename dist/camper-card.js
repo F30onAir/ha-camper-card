@@ -1457,8 +1457,14 @@ class CamperCardEditor extends EditorBase {
     const f = (v) => new Intl.NumberFormat(this._lang === 'de' ? 'de-DE' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(v);
     const now = raw ? `<p>${L('ed_zero_now')}: <span class="now">${L('ed_pitch')} ${f(raw.pitch)}°, ${L('ed_roll')} ${f(raw.roll)}°</span></p>` : `<p>${L('ed_zero_none')}</p>`;
     const set = (lv.offset_pitch || lv.offset_roll) ? `<p>${L('ed_zero_set')}: <span class="now">${f(lv.offset_pitch)}°, ${f(lv.offset_roll)}°</span></p>` : '';
-    box.innerHTML = `<h3>${L('ed_zero_title')}</h3>${now}${set}<p>${L('ed_zero_hint')}</p>
-      <div class="btns"><button class="main" data-a="zero" ${raw ? '' : 'disabled'}>${L('ed_zero')}</button>${set ? `<button data-a="reset">${L('ed_zero_reset')}</button>` : ''}</div>`;
+    if (!box.querySelector('.readings')) box.innerHTML = '<div class="readings"></div><div class="btns"></div>';
+    box.querySelector('.readings').innerHTML = `<h3>${L('ed_zero_title')}</h3>${now}${set}<p>${L('ed_zero_hint')}</p>`;
+    const controls = `<button class="main" data-a="zero" ${raw ? '' : 'disabled'}>${L('ed_zero')}</button>${set ? `<button data-a="reset">${L('ed_zero_reset')}</button>` : ''}`;
+    // Sensor updates must not replace a button between pressing and releasing it.
+    if (controls !== this._zeroControls) {
+      box.querySelector('.btns').innerHTML = controls;
+      this._zeroControls = controls;
+    }
   }
   _setZero() {
     const raw = this._rawTilt(); if (!raw) return;
