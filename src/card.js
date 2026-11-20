@@ -683,7 +683,7 @@ svg:not([data-small]) .only-small{display:none}
 @keyframes flow{to{stroke-dashoffset:-10}}
 .hero-note{position:absolute;left:10px;right:10px;bottom:5px;font-size:10.5px;color:var(--secondary-text-color);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tiles{display:flex;flex-wrap:wrap;gap:8px;padding:8px 8px 0}
-.tile{--c:var(--secondary-text-color);flex:1 1 150px;display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;align-content:start;padding:9px 11px;border:1px solid var(--divider-color);border-radius:12px;min-width:0}
+.tile{--c:var(--secondary-text-color);flex:1 1 172px;display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;align-content:start;padding:9px 11px;border:1px solid var(--divider-color);border-radius:12px;min-width:0}
 .tile[data-mi]{cursor:pointer}
 .tile[data-mi]:hover{background:color-mix(in srgb,var(--secondary-text-color) 7%,transparent)}
 .t-i{grid-row:span 2;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
@@ -784,7 +784,11 @@ export class CamperCard extends HTMLElement {
       if (e.target.closest && e.target.closest('[data-mi]')) { e.preventDefault(); this._onClick(e); }
     });
     // Gedrückthalten (Unscharf ohne Code): mit Maus, Finger oder Tastatur.
-    this.shadowRoot.addEventListener('pointerdown', (e) => { const hb = e.target.closest && e.target.closest('[data-hold]'); if (hb) { e.preventDefault(); this._holdStart(hb, e); } });
+    this.shadowRoot.addEventListener('pointerdown', (e) => {
+      const hb = e.target.closest && e.target.closest('[data-hold]');
+      if (hb) { e.preventDefault(); this._holdStart(hb, e); return; }
+      if (e.target.closest && e.target.closest('[data-a],[data-mi]')) this._pressStart();
+    });
     this.shadowRoot.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('[data-hold]')) e.preventDefault(); });
     // Solange das Code-Feld den Fokus hat, wird nicht neu gezeichnet. Danach kurz warten, damit ein Tipp auf eine Taste noch ankommt.
     this.shadowRoot.addEventListener('focusout', () => { if (this._pend) setTimeout(() => this._flush(), 400); });
@@ -809,6 +813,7 @@ export class CamperCard extends HTMLElement {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
     clearInterval(this._cdT); this._cdT = null;
+    if (this._press) { clearTimeout(this._press.t); this._press = null; }
   }
   /** Nur neu zeichnen, wenn sich ein zugewiesener Zustand, das Thema oder die Sprache ändert. */
   _signature() {
@@ -823,6 +828,7 @@ export class CamperCard extends HTMLElement {
   _render() {
     if (!this._config || !this._root) return;
     if (!this._hass) { this._root.innerHTML = ''; return; }
+    this._pend = false;
     const cfg = this._config, hass = this._hass, data = readStates(hass, cfg);
     C = { cfg, hass, lang: langOf(hass, cfg), locale: (hass.locale && hass.locale.language) || hass.language || 'en', raw: data.st, v: data.v, unit: data.unit, al: data.al, alMode: this._ui.alMode, alErr: this._ui.alErr, anim: this._anim, d: V[cfg.outline] };
     this._al = data.al;
@@ -839,14 +845,28 @@ export class CamperCard extends HTMLElement {
       const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       this._root.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
       if (code) { const n = this._root.querySelector('[data-code]'); if (n) n.value = code; }
-      if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus(); }
+      // Ohne preventScroll springt die Seite bei jedem Update zur Karte zurück (Issue #4).
+      if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
     } finally { C = null; }
     this._fit();
     this._startAnim();
     this._countdown();
   }
-  _busy() { const a = this.shadowRoot.activeElement; return !!this._hold || !!(a && a.dataset && a.dataset.code !== undefined); }
+  _busy() { const a = this.shadowRoot.activeElement; return !!this._hold || !!this._press || !!(a && a.dataset && a.dataset.code !== undefined); }
   _flush() { if (this._pend && !this._busy()) { this._pend = false; this._render(); } }
+  /** Solange eine Taste gedrückt ist, nicht neu zeichnen, sonst geht der Tipp verloren (Issue #3). Nach dem Loslassen kurz warten, bis der Klick angekommen ist. */
+  _pressStart() {
+    if (this._press) return;
+    const evs = ['pointerup', 'pointercancel'];
+    const end = () => {
+      evs.forEach((n) => window.removeEventListener(n, end, true));
+      if (!this._press) return;
+      clearTimeout(this._press.t);
+      this._press.t = setTimeout(() => { this._press = null; this._flush(); }, 350);
+    };
+    this._press = { t: setTimeout(end, 2000) };
+    evs.forEach((n) => window.addEventListener(n, end, true));
+  }
   /** Restzeit der Verzögerung jede Sekunde weiterzählen, ohne die ganze Karte neu zu zeichnen. */
   _countdown() {
     clearInterval(this._cdT); this._cdT = null;
