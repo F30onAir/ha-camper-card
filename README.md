@@ -4,7 +4,7 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 *Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
 
-> **Status: early test version (0.3.1).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+> **Status: early test version (0.4.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
 
@@ -18,6 +18,7 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 - Rename every tile in your own language, for example "Färskvatten" or "Gas left"
 - Windows light up with the inside light, outside light, water pump or taps as a switch, plus up to 6 switches of your own (fridge, heater, boiler …)
 - Charge source: solar, charger, both or unknown, derived from your sensors
+- Alarm system, for example Alarmo: state with a shield at the door, exit and entry delay, arm and disarm, open sensors, "arm anyway"
 - Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
 - Sensors that are assigned but offline show "offline", unassigned parts are hidden
 - Visual editor, light and dark theme, phone and tablet
@@ -42,6 +43,7 @@ The card is only the display. It has no integration of its own and talks to no d
 | `pump` | switch or light | on/off | water pump or taps, tap the card to switch |
 | `light_inside`, `light_outside` | switch or light | on/off | lights, tap the card to switch |
 | `switches:` (list) | switch, light, input_boolean, fan | on/off | up to 6 switches of your own, tap to switch |
+| `alarm` | alarm_control_panel | state | Alarmo or any other alarm panel, see below |
 | `pitch`, `roll` | sensor | ° (also %, rad, mrad) | tilt sensor, lengthwise and sideways |
 
 Number fields also take `input_number` and `number`, switch fields also `input_boolean`. With helpers you can try the card before any hardware is installed.
@@ -55,6 +57,8 @@ Number fields also take `input_number` and `number`, switch fields also `input_b
 **Humidity.** `humidity_inside` appears below the inside temperature, or as its own tile without one. From `humidity_max` (default 70 %) the card shows "too humid".
 
 **Your own switches.** Under `switches:` (in the editor: "More switches") you can add up to 6 entities, each with an optional `name` and `icon` (for example `mdi:fridge`). Without a name the card uses the name from Home Assistant.
+
+**Alarm system.** Assign an `alarm_control_panel` entity as `alarm`, for example from [Alarmo](https://github.com/nielsfaber/alarmo). The card shows the state with a shield at the door, who switched it, the remaining exit or entry delay and a red notice when the alarm goes off. Tap the alarm header to open the Home Assistant dialog. The buttons arm in the modes your panel offers (with Alarmo: the modes enabled there) or disarm it. A code field appears only when the panel asks for a code for the next step, and the card never stores the code. Disarming without a code needs press and hold, so it cannot happen by accident. With Alarmo the card also names the open sensors when arming failed ("Not armed: Roof hatch open") and the sensor that set off the alarm, and offers "Arm anyway", which bypasses the open sensors (`alarmo.arm` with `force`). With `alarm_controls: false` the card only shows the state.
 
 **Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. The card shows solar, charger, both, or "unknown" if no source explains the charging.
 
@@ -116,7 +120,7 @@ If a direction is reversed or the axes are swapped, fix it in the card editor (i
 
 </details>
 
-*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen, jede Kachel lässt sich unter `names:` selbst benennen. Neu in 0.3: Temperatur außen und Gefrierfach, Luftfeuchte innen mit Hinweis „zu feucht“, Restlaufzeit der Batterie (mit `battery_capacity` in Ah), Frostwarnung für Tanks mit Wasser und bis zu sechs eigene Schalter unter `switches:`. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
+*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen, jede Kachel lässt sich unter `names:` selbst benennen. Neu in 0.3: Temperatur außen und Gefrierfach, Luftfeuchte innen mit Hinweis „zu feucht“, Restlaufzeit der Batterie (mit `battery_capacity` in Ah), Frostwarnung für Tanks mit Wasser und bis zu sechs eigene Schalter unter `switches:`. Neu in 0.4: Alarmanlage unter `alarm`, zum Beispiel Alarmo, mit Schild an der Tür, Restzeit der Verzögerung, Scharf- und Unscharfschalten (Unscharf ohne Code nur durch Gedrückthalten, der Code wird nie gespeichert), offenen Sensoren und „Trotzdem scharf schalten“. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
 
 ## Screenshots
 
@@ -139,12 +143,12 @@ From Home Assistant 2026.11 HACS is built in as the **Marketplace**, the steps s
 3. Reload the browser (in the companion app: reset the frontend cache in the app settings)
 4. Edit a dashboard → **Add card** → **Camper Card**, then pick your entities in the editor
 
-**If the search does not find it** (the card is still waiting to be added to the default catalog), add it as a custom repository first and then continue with step 2:
+**If the search does not find it** (for example because HACS has not refreshed its list yet), add it as a custom repository first and then continue with step 2:
 
 1. HACS or Marketplace → ⋮ (top right) → **Custom repositories**
 2. Repository: `https://github.com/F30onAir/ha-camper-card`, type: **Dashboard**
 
-*Deutsch:* In HACS bzw. ab Home Assistant 2026.11 im Marketplace nach **Camper Card** suchen → herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**. Findet die Suche die Karte noch nicht: ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard**, danach wie oben herunterladen.
+*Deutsch:* In HACS bzw. ab Home Assistant 2026.11 im Marketplace nach **Camper Card** suchen → herunterladen → Browser neu laden → Dashboard bearbeiten → **Karte hinzufügen** → **Camper Card**. Findet die Suche die Karte nicht: ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/F30onAir/ha-camper-card`, Typ **Dashboard**, danach wie oben herunterladen.
 
 ## Example
 
@@ -158,6 +162,7 @@ battery_capacity: 100     # Ah, optional, shows the remaining time
 battery_voltage: 12.8     # V, nominal voltage, default 12.8
 frost_temp: 3             # °C, frost warning below (frost_warning: false turns it off)
 humidity_max: 70          # %, "too humid" from here
+alarm_controls: true      # false = alarm state only, no buttons
 entities:
   battery: sensor.battery_soc
   battery_power: sensor.battery_power      # W, positive = charging
@@ -179,6 +184,7 @@ entities:
   light_outside: light.awning
   pitch: sensor.tilt_length                # degrees (also %, rad, mrad)
   roll: sensor.tilt_side
+  alarm: alarm_control_panel.alarmo        # optional, for example Alarmo
 switches:                 # optional, up to 6
   - entity: switch.fridge
     name: Fridge
@@ -215,7 +221,7 @@ No npm packages are needed. With Node.js 22 or newer:
 
 ```bash
 npm run build   # writes dist/camper-card.js
-npm test        # levelling maths, charge sources, config, editor mapping, build output
+npm test        # levelling maths, charge sources, alarm logic, config, editor mapping, build output
 ```
 
 `test/harness.html` shows the built card with simulated Home Assistant data. Serve the project folder with any static web server and open that page.

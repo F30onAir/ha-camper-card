@@ -48,6 +48,13 @@ export const STRINGS = {
     ed_capacity_help: 'Für die Restlaufzeit, geschätzt aus Ladestand, Leistung und Kapazität. Leer lassen, um sie nicht anzuzeigen.',
     ed_g_extra: 'Weitere Schalter', ed_sw: 'Schalter', ed_sw_name: 'Name', ed_sw_icon: 'Symbol',
     ed_sw_help: 'Zum Beispiel Kühlschrank, Heizung oder Boiler. Ohne Namen zeigt die Karte den Namen aus Home Assistant.',
+    alarm: 'Alarmanlage', alArmed: 'Scharf', alS_disarmed: 'Unscharf', alS_arming: 'Wird scharf geschaltet', alS_pending: 'Eingangsverzögerung',
+    alS_triggered: 'Alarm ausgelöst', alS_disarming: 'Wird unscharf geschaltet',
+    alM_away: 'Abwesend', alM_night: 'Nacht', alM_home: 'Zuhause', alM_vacation: 'Urlaub', alM_custom_bypass: 'Eigener Modus',
+    alDisarm: 'Unscharf', alHold: 'gedrückt halten', alCode: 'Code', alLeft: 'noch {}', alBy: 'von {}', alBypass: 'überbrückt: {}',
+    alFailed: 'Nicht scharf geschaltet', alCause: 'ausgelöst durch {}', alOpen: 'offen', alUnav: 'nicht erreichbar', alForce: 'Trotzdem scharf', alErr: 'Hat nicht geklappt',
+    ed_g_alarm: 'Alarmanlage', ed_alarm: 'Alarmanlage', ed_alarm_controls: 'Bedienung auf der Karte',
+    ed_alarm_help: 'Eine alarm_control_panel-Entität, zum Beispiel von Alarmo. Unscharf schalten ohne Code geht nur durch Gedrückthalten. Den Code speichert die Karte nicht.',
   },
   en: {
     overview: 'Overview', level: 'Levelling', battery: 'Battery', power: 'Power', solar: 'Solar', fresh: 'Fresh water', grey: 'Grey water', gas: 'Gas',
@@ -95,6 +102,13 @@ export const STRINGS = {
     ed_capacity_help: 'For the remaining time, estimated from charge, power and capacity. Leave empty to hide it.',
     ed_g_extra: 'More switches', ed_sw: 'Switch', ed_sw_name: 'Name', ed_sw_icon: 'Icon',
     ed_sw_help: 'For example fridge, heater or boiler. Without a name the card shows the name from Home Assistant.',
+    alarm: 'Alarm system', alArmed: 'Armed', alS_disarmed: 'Disarmed', alS_arming: 'Arming', alS_pending: 'Entry delay',
+    alS_triggered: 'Alarm triggered', alS_disarming: 'Disarming',
+    alM_away: 'Away', alM_night: 'Night', alM_home: 'Home', alM_vacation: 'Vacation', alM_custom_bypass: 'Custom',
+    alDisarm: 'Disarm', alHold: 'press and hold', alCode: 'Code', alLeft: '{} left', alBy: 'by {}', alBypass: 'bypassed: {}',
+    alFailed: 'Not armed', alCause: 'triggered by {}', alOpen: 'open', alUnav: 'unavailable', alForce: 'Arm anyway', alErr: 'Did not work',
+    ed_g_alarm: 'Alarm system', ed_alarm: 'Alarm system', ed_alarm_controls: 'Controls on the card',
+    ed_alarm_help: 'An alarm_control_panel entity, for example from Alarmo. Disarming without a code needs press and hold. The card never stores the code.',
   },
 };
 

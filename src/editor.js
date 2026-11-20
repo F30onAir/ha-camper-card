@@ -5,7 +5,7 @@ import { toDegrees, correctTilt } from './leveling.js';
 import { normalizeConfig, NAME_KEYS, ENTITY_KEYS, MAX_SWITCHES } from './config.js';
 
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
-  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
+  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll', 'alarm'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
 const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
   'frost_temp', 'humidity_max'];
@@ -26,6 +26,7 @@ export function flattenConfig(cfg) {
   for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
   if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
   d.frost_warning = cfg.frost_warning !== false;
+  d.alarm_controls = cfg.alarm_controls !== false;
   (Array.isArray(cfg.switches) ? cfg.switches : []).slice(0, MAX_SWITCHES).forEach((s, i) => {
     const o = typeof s === 'string' ? { entity: s } : s || {};
     if (empty(o.entity)) return;
@@ -47,6 +48,7 @@ export function unflattenConfig(data, prev) {
   const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
   if (Object.keys(names).length) out.names = names;
   if (data.frost_warning === false) out.frost_warning = false;
+  if (data.alarm_controls === false) out.alarm_controls = false;
   const sw = [];
   for (const i of SLOTS) {
     if (empty(data[`sw${i}`])) continue;
@@ -146,6 +148,7 @@ export class CamperCardEditor extends EditorBase {
     if (s.name === 'battery_capacity') return L('ed_capacity_help');
     if (s.name === 'frost_warning') return L('ed_frost_help');
     if (s.name === 'sw1') return L('ed_sw_help');
+    if (s.name === 'alarm') return L('ed_alarm_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -189,6 +192,9 @@ export class CamperCardEditor extends EditorBase {
         { name: `sw${i}`, selector: { entity: { domain: ['switch', 'light', 'input_boolean', 'fan'] } } },
         { name: `sw${i}_name`, selector: { text: {} } }, { name: `sw${i}_icon`, selector: { icon: {} } },
       ])),
+      g('g_alarm', [
+        { name: 'alarm', selector: { entity: { domain: ['alarm_control_panel'] } } }, { name: 'alarm_controls', selector: { boolean: {} } },
+      ]),
       g('g_level', [
         { name: 'pitch', selector: NUMERIC }, { name: 'roll', selector: NUMERIC },
         { name: 'track', selector: num(50, 400, 1, 'cm') }, { name: 'base', selector: num(50, 1200, 1, 'cm') },

@@ -130,3 +130,11 @@ test('0.3: frei belegbare Schalter werden geprüft und begrenzt', () => {
   assert.equal(many.switches.length, 6);
   assert.deepEqual(normalizeConfig({ switches: 'switch.x' }).switches, []);
 });
+
+test('0.4: Alarmanlage mit eigenem Namen, Bedienung ist Standard', () => {
+  const c = normalizeConfig({ entities: { alarm: 'alarm_control_panel.wohnwagen' }, names: { alarm: 'Alarmo' } });
+  assert.equal(c.entities.alarm, 'alarm_control_panel.wohnwagen');
+  assert.equal(c.names.alarm, 'Alarmo');
+  assert.equal(c.alarm_controls, true);
+  assert.equal(normalizeConfig({ alarm_controls: false }).alarm_controls, false);
+});

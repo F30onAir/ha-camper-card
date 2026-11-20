@@ -83,3 +83,14 @@ test('Editor 0.3: Frostwarnung an ist Standard und wird nicht gespeichert, leere
   assert.deepEqual(back.switches, [{ entity: 'switch.b' }]);
   assert.equal('switches' in unflattenConfig(flat, cfg), false);
 });
+
+test('Editor 0.4: Alarmanlage und abgeschaltete Bedienung überstehen das Formular', () => {
+  const src = { ...cfg, entities: { ...cfg.entities, alarm: 'alarm_control_panel.wohnwagen' }, alarm_controls: false };
+  const flat = flattenConfig(src);
+  assert.equal(flat.alarm, 'alarm_control_panel.wohnwagen');
+  assert.equal(flat.alarm_controls, false);
+  const back = unflattenConfig(flat, src);
+  assert.equal(back.entities.alarm, 'alarm_control_panel.wohnwagen');
+  assert.equal(back.alarm_controls, false);
+  assert.equal('alarm_controls' in unflattenConfig(flattenConfig(cfg), cfg), false); // Standard wird nicht gespeichert
+});

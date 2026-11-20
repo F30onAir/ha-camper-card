@@ -3,10 +3,11 @@ import { STRINGS, langOf } from './i18n.js';
 import { V, TYPE_NAME } from './vehicles.js';
 import { DEG, calcLeveling, round5, nearestStep, toDegrees, correctTilt } from './leveling.js';
 import { chargeSources, batteryHours } from './sources.js';
+import { AL_MODES, alarmModes, alarmKind, alarmNeedsCode, openSensors, isAlarmo, alarmRemaining, forceMode, alarmCall } from './alarm.js';
 import { normalizeConfig, ENTITY_KEYS, CFG_OF, BOOL_KEYS } from './config.js';
 
 const VERSION = '__VERSION__';
-const EX = 2.5, MAXA = 7, BUB = 20;
+const EX = 2.5, MAXA = 7, BUB = 20, HOLD_MS = 900;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -65,12 +66,13 @@ function runTxt() {
 
 /** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
-  const out = { st: {}, v: {}, unit: {} };
+  const out = { st: {}, v: {}, unit: {}, al: null };
   for (const [ck, k] of Object.entries(ENTITY_KEYS)) {
     const id = cfg.entities[ck];
     if (!id) { out.st[k] = 'none'; continue; }
     const s = hass.states[id];
     if (isOff(s)) { out.st[k] = 'off'; continue; }
+    if (k === 'alarm') { out.st[k] = 'ok'; out.v[k] = s.state; out.al = { a: s.attributes || {}, lc: s.last_changed }; continue; }
     if (BOOL_KEYS.has(k)) { out.st[k] = 'ok'; out.v[k] = s.state === 'on'; continue; }
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
@@ -100,7 +102,10 @@ const IC = {
   snow: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>',
   hum: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/><path d="M9.6 16.6l4.8-5.2"/><circle cx="9.9" cy="12.4" r=".8"/><circle cx="14.1" cy="15.8" r=".8"/>',
   power: '<path d="M12 3.5v8"/><path d="M7 6.8a7 7 0 1 0 10 0"/>',
+  shield: '<path d="M12 3 5 6v5.5c0 4.2 2.9 7.9 7 9.5 4.1-1.6 7-5.3 7-9.5V6z"/>',
 };
+IC.shieldOk = IC.shield + '<path d="M9 12l2.2 2.2L15.5 10"/>';
+IC.shieldAl = IC.shield + '<path d="M12 8v4.5M12 15.6v.1"/>';
 const ic = (n, s = 20) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
 /* ---------- Seitenansicht ---------- */
@@ -239,6 +244,14 @@ function srcText(src) {
   if (src.chargerActive) return t('viaCharger');
   return src.unknown ? t('srcUnknown') : '';
 }
+/* Alarmanlage: Farbe je Zustand und kleines Schild an der Tür der Seitenansicht. */
+const AL_COLOR = { armed: 'var(--c-ok)', arming: 'var(--c-bat-mid)', pending: 'var(--c-bat-mid)', disarming: 'var(--c-bat-mid)', triggered: 'var(--c-bat-low)' };
+const alKind = () => (st('alarm') === 'ok' ? alarmKind(val('alarm')) : 'off');
+function shieldEl(D) {
+  const k = alKind(), c = AL_COLOR[k], x = D.x + D.w / 2 - 14, y = D.win.y + D.win.h + 10;
+  const mark = k === 'armed' ? 'M9 12l2.2 2.2L15.5 10' : k === 'triggered' ? 'M12 8v4.5M12 15.6v.1' : '';
+  return `<g class="${k === 'triggered' ? 'al-pulse' : ''}" transform="translate(${x} ${y}) scale(1.18)"><path d="${IC.shield.slice(9, -3)}" fill="${c || 'var(--body)'}" stroke="${c ? 'var(--body)' : 'var(--metal)'}" stroke-width="${c ? 1.6 : 2}" stroke-linejoin="round"/>${mark ? `<path d="${mark}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}</g>`;
+}
 function inletEl(d, active) {
   const { x, y } = d.inlet;
   return `${active ? `<path d="${d.cable}" fill="none" stroke="var(--tire)" stroke-width="3.5" stroke-linecap="round"/>` : ''}
@@ -271,6 +284,7 @@ function vehicleEl(d) {
   if (d.frontWin) s += `<path d="${d.frontWin}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
   let i = 0; d.windows.forEach((w) => { s += windowEl(w, liOn, i++); });
   s += doorEl(d.door, liOn, i++);
+  if (st('alarm') !== 'none') s += shieldEl(d.door);
   if (d.cab) {
     const K = d.cab;
     s += `<path d="${K.win}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
@@ -438,6 +452,52 @@ function actsHTML() {
     return actBtn(`data-sw="${i}" data-fid="act-sw${i}"`, 'var(--c-sw)', on, off, ico, esc(w.name || a.friendly_name || w.entity), off ? t('offline') : on ? t('on') : t('off'));
   }).join('');
 }
+/* Alarmanlage: Zustand, Restzeit, wer geschaltet hat, offene Sensoren und Tasten. Den Code liest die Karte nur beim Tippen aus dem Feld. */
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const fname = (id) => { const s = C.hass.states[id]; return esc((s && s.attributes && s.attributes.friendly_name) || id); };
+const alModeTxt = (m) => (AL_MODES.some((x) => x[0] === m) ? t('alM_' + m) : esc(m));
+function alarmText(s) {
+  const k = alarmKind(s);
+  if (k === 'armed') return `${t('alArmed')} · ${alModeTxt(s.slice(6))}`;
+  return k === 'other' ? esc(s) : t('alS_' + k);
+}
+/* Offene oder auslösende Sensoren als Text, zum Beispiel „Dachluke vorne offen, Tür offen“. */
+const sensTxt = (a) => openSensors(a).map(([e, v]) => `${fname(e)} ${t(v === 'unavailable' ? 'alUnav' : 'alOpen')}`).join(', ');
+const alBtn = (act, m, label, cls = '') => `<button class="ab ${cls}" data-a="al" data-act="${act}" data-m="${m}" data-fid="al-${act}-${m}">${label}</button>`;
+function alarmHTML() {
+  const s = st('alarm');
+  if (s === 'none') return '';
+  const head = (icon, main, sub) => `<div class="al-h"${miOf('alarm')}><span class="t-i">${ic(icon, 19)}</span><span class="al-t"><span class="t-l">${nameOf('alarm')}</span><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}</span></div>`;
+  if (s === 'off') return `<div class="al off">${head('shield', t('offline'))}</div>`;
+  const a = C.al.a, sv = val('alarm'), k = alarmKind(sv), sens = openSensors(a), failed = k === 'disarmed' && sens.length > 0;
+  const rem = k === 'arming' || k === 'pending' ? alarmRemaining(a.delay, C.al.lc, Date.now()) : null;
+  const byp = k === 'armed' && Array.isArray(a.bypassed_sensors) ? a.bypassed_sensors.map(fname).join(', ') : '';
+  const sub = [rem !== null ? t('alLeft').replace('{}', `<span data-cd>${mmss(rem)}</span>`) : '', a.changed_by ? t('alBy').replace('{}', esc(a.changed_by)) : '',
+    byp ? t('alBypass').replace('{}', byp) : ''].filter(Boolean).join(' · ');
+  const warn = failed ? `${t('alFailed')}: ${sensTxt(a)}` : (k === 'triggered' || k === 'pending') && sens.length ? t('alCause').replace('{}', sensTxt(a)) : '';
+  let btns = '';
+  if (C.cfg.alarm_controls) {
+    const code = alarmNeedsCode(sv, a), modes = alarmModes(a.supported_features), b = [];
+    if (k === 'disarmed') {
+      modes.forEach((m) => b.push(alBtn('arm', m, t('alM_' + m))));
+      // Trotzdem scharf schalten gibt es nur bei Alarmo (Dienst alarmo.arm mit force).
+      const fm = failed && isAlarmo(a) && C.hass.services && C.hass.services.alarmo ? forceMode(C.alMode, modes) : null;
+      if (fm) b.push(alBtn('force', fm, `${t('alForce')} · ${t('alM_' + fm)}`, 'warn'));
+    } else if (k !== 'other' && k !== 'disarming') {
+      // Unscharf ohne Code nur durch Gedrückthalten, damit es nicht versehentlich passiert.
+      b.push(code ? alBtn('disarm', '', t('alDisarm')) : `<button class="ab hold" data-hold="disarm" data-fid="al-hold">${t('alDisarm')}<small>${t('alHold')}</small></button>`);
+    }
+    if (b.length) btns = `<div class="al-b">${code ? `<input class="al-c" data-code type="password" ${a.code_format === 'number' ? 'inputmode="numeric" ' : ''}autocomplete="off" placeholder="${t('alCode')}" aria-label="${t('alCode')}" data-fid="al-code">` : ''}${b.join('')}</div>`;
+  }
+  const err = C.alErr ? `<div class="al-w">${t('alErr')}: ${esc(C.alErr)}</div>` : '';
+  return `<div class="al k-${k}" style="--c:${AL_COLOR[k] || 'var(--secondary-text-color)'}">${head(k === 'armed' ? 'shieldOk' : k === 'triggered' ? 'shieldAl' : 'shield', alarmText(sv), sub)}${warn ? `<div class="al-w">${warn}</div>` : ''}${err}${btns}</div>`;
+}
+/* Beim Ausrichten nur ein roter Hinweis, falls der Alarm ausgelöst ist. */
+function alarmBanner() {
+  if (alKind() !== 'triggered') return '';
+  const by = openSensors(C.al.a).length ? t('alCause').replace('{}', sensTxt(C.al.a)) : '';
+  return `<div class="lv-st" style="--pc:var(--c-bat-low)">${ic('shieldAl', 22)}<div>${t('alS_triggered')}${by ? `<small>${by}</small>` : ''}</div></div>`;
+}
 function overviewHTML(T) {
   const res = T.state === 'ok' ? calcNow(T) : null;
   const top = T.state === 'ok' ? `<div class="hero-top"><div class="ht-l">
@@ -445,12 +505,12 @@ function overviewHTML(T) {
       ${T.hasP ? `<div class="ht-v"><div><b>${sgn(T.pitch)}°</b><small>${t('long')}</small></div></div>` : ''}
     </div><button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button></div>`
     : T.state === 'off' ? `<div class="hero-top"><div class="ht-l"></div><span class="pill" style="--pc:var(--secondary-text-color);cursor:default">${t('tiltOff')}</span></div>` : '';
-  const tiles = tilesHTML(), acts = actsHTML();
+  const tiles = tilesHTML(), acts = actsHTML(), al = alarmHTML();
   const note = t('approx') + (T.state === 'ok' ? ` · ${t('exag')}` : '');
-  return `<div class="hero">${top}${sceneSVG(T.state === 'ok')}<div class="hero-note">${note}</div></div>
+  return `<div class="hero">${top}${sceneSVG(T.state === 'ok')}<div class="hero-note">${note}</div></div>${al}
     ${tiles.length ? `<div class="tiles">${tiles.join('')}</div>` : ''}
     ${acts ? `<div class="acts">${acts}</div>` : '<div class="cc-foot"></div>'}
-    ${(!tiles.length && !acts && T.state === 'none') ? `<div class="cc-empty">${t('empty')}</div>` : ''}`;
+    ${(!tiles.length && !acts && !al && T.state === 'none') ? `<div class="cc-empty">${t('empty')}</div>` : ''}`;
 }
 
 /* ---------- Ausrichten ---------- */
@@ -554,13 +614,13 @@ function stepsHTML(res) {
   return li.length ? `<ol class="steps">${li.join('')}</ol>` : '';
 }
 function levelHTML(T) {
-  if (T.state === 'off') return `<div class="lv"><div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
+  if (T.state === 'off') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
   const res = calcNow(T), ok = res.level, lv = C.cfg.leveling, tol = lv.tolerance, car = C.cfg.vehicle === 'caravan';
   const pTxt = Math.abs(T.pitch) <= tol ? t('flat') : T.pitch > 0 ? t(car ? 'noseHigh' : 'frontHigh') : t(car ? 'noseLow' : 'frontLow');
   const rTxt = Math.abs(T.roll) <= tol ? t('flat') : T.roll > 0 ? t('rightHigh') : t('leftHigh');
   const dims = `${t('dTrack')} ${nf(lv.track)} cm · ${car ? t(C.d.axles === 2 ? 'dBaseT' : 'dBase') : t('dWheel')} ${nf(lv.base)} cm${lv.defaults ? ` (${t('defaults')})` : ''}`;
   const partial = (T.hasP && T.hasR) ? '' : ` ${t('partial')}`;
-  return `<div class="lv">
+  return `<div class="lv">${alarmBanner()}
     <div class="lv-st" style="--pc:${ok ? 'var(--c-ok)' : 'var(--c-warn)'}">${ic(ok ? 'check' : 'warn', 22)}<div>${ok ? t('levelOk') : t('notLevel')}</div></div>
     ${stepsHTML(res)}
     <div class="lv-g">
@@ -679,7 +739,30 @@ svg:not([data-small]) .only-small{display:none}
 .steps li.over{border-color:color-mix(in srgb,var(--c-bat-low) 60%,transparent)}
 .steps li.over .val{color:var(--c-bat-low)}
 .lv-note{font-size:12px;color:var(--secondary-text-color);padding:2px 4px;line-height:1.35}
-@media (prefers-reduced-motion:reduce){.flow{animation:none}.t-b i{transition:none}}
+.al{--c:var(--secondary-text-color);margin:8px 8px 0;padding:9px 11px;border:1px solid var(--divider-color);border-radius:12px;display:grid;gap:8px}
+.al-h{display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;min-width:0}
+.al-h[data-mi]{cursor:pointer}
+.al-t{min-width:0}
+.al-t b{display:block;font-size:16px;font-weight:500;line-height:1.25}
+.al-t small{display:block;font-size:11.5px;color:var(--secondary-text-color);line-height:1.25;font-variant-numeric:tabular-nums}
+.al.off b{font-size:14px;font-weight:400;color:var(--secondary-text-color)}
+.al-w{font-size:12.5px;line-height:1.3;color:var(--c-warn)}
+.al.k-triggered{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.al.k-triggered b{color:var(--c)}
+.al.k-triggered .al-w{color:var(--primary-text-color)}
+.al-b{display:flex;flex-wrap:wrap;gap:8px}
+.ab{position:relative;overflow:hidden;flex:1 1 92px;appearance:none;min-height:40px;padding:6px 12px;border-radius:10px;border:1px solid var(--divider-color);background:transparent;cursor:pointer;font-size:13px;font-weight:500;line-height:1.15}
+.ab small{display:block;font-size:11px;font-weight:400;color:var(--secondary-text-color)}
+.ab:hover{background:color-mix(in srgb,var(--secondary-text-color) 8%,transparent)}
+.ab.warn{color:var(--c-warn);border-color:color-mix(in srgb,var(--c-warn) 50%,transparent)}
+.hold{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.hold::after{content:"";position:absolute;left:0;bottom:0;height:4px;width:0;background:var(--c)}
+.hold.holding::after{width:100%;transition:width ${HOLD_MS}ms linear}
+.al-c{flex:1 1 92px;min-width:0;min-height:40px;padding:6px 10px;border-radius:10px;border:1px solid var(--divider-color);background:transparent;color:inherit;font:inherit;font-size:15px}
+.al-c.err{border-color:var(--c-warn)}
+.al-pulse,.k-triggered .t-i{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.flow,.al-pulse,.k-triggered .t-i{animation:none}.t-b i{transition:none}}
 `;
 
 /* ---------- Element ---------- */
@@ -695,8 +778,16 @@ export class CamperCard extends HTMLElement {
     this._raf = null; this._sig = ''; this._first = true;
     this.shadowRoot.addEventListener('click', (e) => this._onClick(e));
     this.shadowRoot.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-mi]')) { e.preventDefault(); this._onClick(e); }
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const hb = e.target.closest && e.target.closest('[data-hold]');
+      if (hb) { e.preventDefault(); if (!e.repeat) this._holdStart(hb); return; }
+      if (e.target.closest && e.target.closest('[data-mi]')) { e.preventDefault(); this._onClick(e); }
     });
+    // Gedrückthalten (Unscharf ohne Code): mit Maus, Finger oder Tastatur.
+    this.shadowRoot.addEventListener('pointerdown', (e) => { const hb = e.target.closest && e.target.closest('[data-hold]'); if (hb) { e.preventDefault(); this._holdStart(hb, e); } });
+    this.shadowRoot.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('[data-hold]')) e.preventDefault(); });
+    // Solange das Code-Feld den Fokus hat, wird nicht neu gezeichnet. Danach kurz warten, damit ein Tipp auf eine Taste noch ankommt.
+    this.shadowRoot.addEventListener('focusout', () => { if (this._pend) setTimeout(() => this._flush(), 400); });
   }
   static getConfigElement() { return document.createElement('camper-card-editor'); }
   static getStubConfig() { return { vehicle: 'caravan', outline: 'caravan_round', entities: {} }; }
@@ -705,7 +796,7 @@ export class CamperCard extends HTMLElement {
     this._hass = h;
     if (!this._config) return;
     const sig = this._signature();
-    if (sig !== this._sig) { this._sig = sig; this._render(); }
+    if (sig !== this._sig) { this._sig = sig; if (this._busy()) this._pend = true; else this._render(); }
   }
   get hass() { return this._hass; }
   getCardSize() { return 7; }
@@ -717,12 +808,15 @@ export class CamperCard extends HTMLElement {
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+    clearInterval(this._cdT); this._cdT = null;
   }
   /** Nur neu zeichnen, wenn sich ein zugewiesener Zustand, das Thema oder die Sprache ändert. */
   _signature() {
     const h = this._hass, c = this._config;
     const parts = [h.themes && h.themes.darkMode ? 'd' : 'l', (h.locale && h.locale.language) || h.language || ''];
     for (const id of Object.values(c.entities)) { const s = h.states[id]; parts.push(s ? `${s.state}|${(s.attributes && s.attributes.unit_of_measurement) || ''}` : '-'); }
+    const al = c.entities.alarm && h.states[c.entities.alarm];
+    if (al) { const a = al.attributes || {}; parts.push(JSON.stringify([a.open_sensors, a.bypassed_sensors, a.delay, a.changed_by, a.code_format, a.code_arm_required, a.supported_features, al.last_changed])); }
     for (const w of c.switches) { const s = h.states[w.entity]; parts.push(s ? `${s.state}|${(s.attributes && (s.attributes.friendly_name + s.attributes.icon)) || ''}` : '-'); }
     return parts.join(';');
   }
@@ -730,7 +824,9 @@ export class CamperCard extends HTMLElement {
     if (!this._config || !this._root) return;
     if (!this._hass) { this._root.innerHTML = ''; return; }
     const cfg = this._config, hass = this._hass, data = readStates(hass, cfg);
-    C = { cfg, hass, lang: langOf(hass, cfg), locale: (hass.locale && hass.locale.language) || hass.language || 'en', raw: data.st, v: data.v, unit: data.unit, anim: this._anim, d: V[cfg.outline] };
+    C = { cfg, hass, lang: langOf(hass, cfg), locale: (hass.locale && hass.locale.language) || hass.language || 'en', raw: data.st, v: data.v, unit: data.unit, al: data.al, alMode: this._ui.alMode, alErr: this._ui.alErr, anim: this._anim, d: V[cfg.outline] };
+    this._al = data.al;
+    const ci = this._root.querySelector('[data-code]'), code = ci ? ci.value : '';
     try {
       this.toggleAttribute('dark', !!(hass.themes && hass.themes.darkMode));
       const T = tilt();
@@ -742,15 +838,60 @@ export class CamperCard extends HTMLElement {
       const v = this._ui.view;
       const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       this._root.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
+      if (code) { const n = this._root.querySelector('[data-code]'); if (n) n.value = code; }
       if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus(); }
     } finally { C = null; }
     this._fit();
     this._startAnim();
+    this._countdown();
+  }
+  _busy() { const a = this.shadowRoot.activeElement; return !!this._hold || !!(a && a.dataset && a.dataset.code !== undefined); }
+  _flush() { if (this._pend && !this._busy()) { this._pend = false; this._render(); } }
+  /** Restzeit der Verzögerung jede Sekunde weiterzählen, ohne die ganze Karte neu zu zeichnen. */
+  _countdown() {
+    clearInterval(this._cdT); this._cdT = null;
+    if (!this._root.querySelector('[data-cd]')) return;
+    this._cdT = setInterval(() => {
+      const al = this._al, r = al ? alarmRemaining(al.a.delay, al.lc, Date.now()) : null;
+      this._root.querySelectorAll('[data-cd]').forEach((e) => { e.textContent = mmss(r || 0); });
+      if (!r) { clearInterval(this._cdT); this._cdT = null; }
+    }, 1000);
+  }
+  /** Taste der Alarmanlage. Ist ein Code-Feld da, muss etwas drinstehen. Der Code wird danach sofort gelöscht. */
+  _alarm(act, mode) {
+    const id = this._config.entities.alarm, h = this._hass;
+    if (!id || !h) return;
+    const inp = this._root.querySelector('[data-code]'), code = inp ? inp.value.trim() : '';
+    if (inp && !code) { inp.classList.add('err'); inp.focus(); return; }
+    if (inp) inp.value = '';
+    if (act === 'arm') this._ui.alMode = mode;
+    this._ui.alErr = '';
+    const [d, s, data] = alarmCall(id, act, mode, code);
+    Promise.resolve(h.callService(d, s, data)).catch((e) => {
+      this._ui.alErr = (e && e.message) || '?'; this._render();
+      setTimeout(() => { this._ui.alErr = ''; this._render(); }, 8000);
+    });
+  }
+  /** Gedrückthalten: erst nach HOLD_MS auslösen. Loslassen, Verrutschen oder Abbrechen bricht ab. */
+  _holdStart(el, ev) {
+    if (this._hold) return;
+    el.classList.add('holding');
+    const x = ev ? ev.clientX : 0, y = ev ? ev.clientY : 0;
+    const evs = ['pointerup', 'pointercancel', 'keyup', 'blur'];
+    const mv = (e) => { if (Math.abs(e.clientX - x) + Math.abs(e.clientY - y) > 24) end(); };
+    const end = () => {
+      clearTimeout(this._hold.t);
+      evs.forEach((n) => window.removeEventListener(n, end)); window.removeEventListener('pointermove', mv);
+      el.classList.remove('holding'); this._hold = null; this._flush();
+    };
+    this._hold = { t: setTimeout(() => { end(); this._alarm(el.dataset.hold, ''); }, HOLD_MS) };
+    evs.forEach((n) => window.addEventListener(n, end)); if (ev) window.addEventListener('pointermove', mv);
   }
   _onClick(e) {
     const el = e.target.closest && e.target.closest('[data-a],[data-mi]');
     if (!el) return;
     if (el.dataset.a === 'view') { this._ui.view = el.dataset.v; this._render(); return; }
+    if (el.dataset.a === 'al') { this._alarm(el.dataset.act, el.dataset.m); return; }
     if (el.dataset.a === 'toggle') {
       const sw = el.dataset.sw !== undefined ? this._config.switches[+el.dataset.sw] : null;
       const id = sw ? sw.entity : this._config.entities[CFG_OF[el.dataset.k]];

@@ -38,10 +38,23 @@ const helpers = (p, r, sol, li, lo) => {
   st('input_number.tilt_length', p, '°'); st('input_number.tilt_side', r, '°'); st('input_number.solar_power', sol, 'W');
   st('input_boolean.light_inside', li ? 'on' : 'off'); st('input_boolean.light_outside', lo ? 'on' : 'off');
 };
+const alarm = (state, extra) => { S['alarm_control_panel.alarmo'] = { entity_id: 'alarm_control_panel.alarmo', state, last_changed: new Date().toISOString(),
+  attributes: { friendly_name: 'Alarmo', arm_mode: null, open_sensors: null, bypassed_sensors: null, delay: null, code_format: null, code_arm_required: false,
+    changed_by: 'Test', supported_features: 2 | 4 | 8, ...extra } }; };
+let armTimer = null;
+function alarmService(service, data) {
+  clearTimeout(armTimer);
+  if (service === 'alarm_disarm') { alarm('disarmed'); return; }
+  const mode = service === 'arm' ? (data.mode === 'custom' ? 'custom_bypass' : data.mode) : service.replace('alarm_arm_', '');
+  const open = S['input_boolean.light_outside'] && S['input_boolean.light_outside'].state === 'on';
+  if (open && !data.force) { alarm('disarmed', { open_sensors: { 'input_boolean.light_outside': 'open' } }); return; }
+  alarm('arming', { arm_mode: 'armed_' + mode, delay: 10 });
+  armTimer = setTimeout(() => { alarm('armed_' + mode, { arm_mode: 'armed_' + mode, bypassed_sensors: data.force ? ['input_boolean.light_outside'] : null }); push(); }, 10000);
+}
 const SCEN = {
   mine,
   all: () => { mine(); st('sensor.battery_soc', '78', '%'); st('sensor.battery_power', '145', 'W'); st('sensor.fresh_water_level', '62', '%');
-    st('sensor.gas_level', '74', '%'); st('sensor.gas_sensor_raw', '210', 'mm'); helpers(1.4, -0.9, 210, true, false); },
+    st('sensor.gas_level', '74', '%'); st('sensor.gas_sensor_raw', '210', 'mm'); helpers(1.4, -0.9, 210, true, false); alarm('disarmed'); },
   slope: () => { SCEN.all(); helpers(-2.6, 1.8, 0, true, true); st('sensor.battery_power', '-42', 'W'); st('sensor.gas_level', '12', '%'); },
   none: () => clear(),
 };
@@ -53,7 +66,7 @@ const CFG = {
     fresh: 'sensor.fresh_water_level', gas: 'sensor.gas_level', gas_availability: 'sensor.gas_sensor_raw',
     temp_inside: 'sensor.inside_temperature', temp_fridge: 'sensor.fridge_temperature',
     pump: 'switch.water_pump', light_inside: 'input_boolean.light_inside', light_outside: 'input_boolean.light_outside',
-    pitch: 'input_number.tilt_length', roll: 'input_number.tilt_side',
+    pitch: 'input_number.tilt_length', roll: 'input_number.tilt_side', alarm: 'alarm_control_panel.alarmo',
   },
 };
 const ui = { dark: false, lang: 'de' };
@@ -62,10 +75,11 @@ const out = document.getElementById('log');
 const note = (m) => { log.push(m); out.textContent = log.slice(-8).join('\n'); };
 function push() {
   document.documentElement.toggleAttribute('data-dark', ui.dark);
-  const hass = { states: { ...S }, themes: { darkMode: ui.dark }, locale: { language: ui.lang }, language: ui.lang,
+  const hass = { states: { ...S }, services: { alarmo: { arm: {} } }, themes: { darkMode: ui.dark }, locale: { language: ui.lang }, language: ui.lang,
     callService(domain, service, data) {
       note(`callService ${domain}.${service} ${JSON.stringify(data)}`);
       if (service === 'toggle') { const e = S[data.entity_id]; if (e) e.state = e.state === 'on' ? 'off' : 'on'; push(); }
+      if (domain === 'alarm_control_panel' || domain === 'alarmo') { alarmService(service, data); push(); }
       return Promise.resolve();
     } };
   for (const c of cards) c.hass = hass;

@@ -6,14 +6,14 @@ export const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
   fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', humidity_inside: 'humIn', temp_outside: 'tempOut',
   temp_fridge: 'tempFridge', temp_freezer: 'tempFreezer',
-  pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
+  pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll', alarm: 'alarm',
 };
 export const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 export const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 export const VEHICLES = ['caravan', 'motorhome', 'van'];
 /** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
 export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
-  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside'];
+  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'alarm'];
 /** Höchstzahl frei belegbarer Schalter (switches:). */
 export const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
@@ -76,6 +76,8 @@ export function normalizeConfig(raw) {
     frost_temp: cfgClamp(cfgNum(raw.frost_temp, 3), -10, 10),
     humidity_max: cfgClamp(cfgNum(raw.humidity_max, 70), 40, 100),
     switches,
+    // Alarmanlage: Tasten auf der Karte, abschalten mit alarm_controls: false (dann nur Anzeige).
+    alarm_controls: raw.alarm_controls !== false,
     entities,
     leveling: {
       track: track !== null && track > 0 ? track : dims[0],

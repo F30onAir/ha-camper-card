@@ -1,10 +1,8 @@
-/*! Camper Card 0.3.1 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.4.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
 // ---- i18n.js ----
-/* Texte der Camper Card auf Deutsch und Englisch. */
-
 const STRINGS = {
   de: {
     overview: 'Übersicht', level: 'Ausrichten', battery: 'Batterie', power: 'Leistung', solar: 'Solar', fresh: 'Frischwasser', grey: 'Grauwasser', gas: 'Gas',
@@ -26,7 +24,6 @@ const STRINGS = {
     sideView: 'Seitenansicht',
     tempOut: 'Außen', tempFreezer: 'Gefrierfach', humIn: 'Luftfeuchte', humHigh: 'zu feucht', airOut: 'lüften', frost: 'Frostgefahr',
     runLeft: 'reicht ca. {}', runFull: 'voll in ca. {}', uMin: 'Min.', uH: 'Std.', uDays: 'Tage', over30: 'über 30 Tage',
-    // Editor
     ed_name: 'Name', ed_vehicle: 'Fahrzeugtyp', ed_outline: 'Umriss', ed_offline: 'Zugewiesen, aber offline', ed_language: 'Sprache',
     ed_offline_grey: 'Grau mit „offline“ anzeigen', ed_offline_hide: 'Ausblenden', ed_lang_auto: 'Wie Home Assistant',
     ed_battery: 'Batterie: Ladestand', ed_battery_power: 'Batterie: Leistung (BMS)', ed_solar: 'Solarleistung', ed_charger: 'Ladegerät: Schalter',
@@ -53,6 +50,13 @@ const STRINGS = {
     ed_capacity_help: 'Für die Restlaufzeit, geschätzt aus Ladestand, Leistung und Kapazität. Leer lassen, um sie nicht anzuzeigen.',
     ed_g_extra: 'Weitere Schalter', ed_sw: 'Schalter', ed_sw_name: 'Name', ed_sw_icon: 'Symbol',
     ed_sw_help: 'Zum Beispiel Kühlschrank, Heizung oder Boiler. Ohne Namen zeigt die Karte den Namen aus Home Assistant.',
+    alarm: 'Alarmanlage', alArmed: 'Scharf', alS_disarmed: 'Unscharf', alS_arming: 'Wird scharf geschaltet', alS_pending: 'Eingangsverzögerung',
+    alS_triggered: 'Alarm ausgelöst', alS_disarming: 'Wird unscharf geschaltet',
+    alM_away: 'Abwesend', alM_night: 'Nacht', alM_home: 'Zuhause', alM_vacation: 'Urlaub', alM_custom_bypass: 'Eigener Modus',
+    alDisarm: 'Unscharf', alHold: 'gedrückt halten', alCode: 'Code', alLeft: 'noch {}', alBy: 'von {}', alBypass: 'überbrückt: {}',
+    alFailed: 'Nicht scharf geschaltet', alCause: 'ausgelöst durch {}', alOpen: 'offen', alUnav: 'nicht erreichbar', alForce: 'Trotzdem scharf', alErr: 'Hat nicht geklappt',
+    ed_g_alarm: 'Alarmanlage', ed_alarm: 'Alarmanlage', ed_alarm_controls: 'Bedienung auf der Karte',
+    ed_alarm_help: 'Eine alarm_control_panel-Entität, zum Beispiel von Alarmo. Unscharf schalten ohne Code geht nur durch Gedrückthalten. Den Code speichert die Karte nicht.',
   },
   en: {
     overview: 'Overview', level: 'Levelling', battery: 'Battery', power: 'Power', solar: 'Solar', fresh: 'Fresh water', grey: 'Grey water', gas: 'Gas',
@@ -100,10 +104,16 @@ const STRINGS = {
     ed_capacity_help: 'For the remaining time, estimated from charge, power and capacity. Leave empty to hide it.',
     ed_g_extra: 'More switches', ed_sw: 'Switch', ed_sw_name: 'Name', ed_sw_icon: 'Icon',
     ed_sw_help: 'For example fridge, heater or boiler. Without a name the card shows the name from Home Assistant.',
+    alarm: 'Alarm system', alArmed: 'Armed', alS_disarmed: 'Disarmed', alS_arming: 'Arming', alS_pending: 'Entry delay',
+    alS_triggered: 'Alarm triggered', alS_disarming: 'Disarming',
+    alM_away: 'Away', alM_night: 'Night', alM_home: 'Home', alM_vacation: 'Vacation', alM_custom_bypass: 'Custom',
+    alDisarm: 'Disarm', alHold: 'press and hold', alCode: 'Code', alLeft: '{} left', alBy: 'by {}', alBypass: 'bypassed: {}',
+    alFailed: 'Not armed', alCause: 'triggered by {}', alOpen: 'open', alUnav: 'unavailable', alForce: 'Arm anyway', alErr: 'Did not work',
+    ed_g_alarm: 'Alarm system', ed_alarm: 'Alarm system', ed_alarm_controls: 'Controls on the card',
+    ed_alarm_help: 'An alarm_control_panel entity, for example from Alarmo. Disarming without a code needs press and hold. The card never stores the code.',
   },
 };
 
-/** Sprache der Karte: Einstellung der Karte, sonst Home Assistant. Alles außer Deutsch wird Englisch. */
 function langOf(hass, cfg) {
   const l = cfg && cfg.language && cfg.language !== 'auto' ? cfg.language
     : (hass && hass.locale && hass.locale.language) || (hass && hass.language) || 'en';
@@ -111,9 +121,6 @@ function langOf(hass, cfg) {
 }
 
 // ---- vehicles.js ----
-/* Fahrzeug-Umrisse der Camper Card. Selbst gezeichnete allgemeine Formen, keine Herstellerzeichnungen. */
-/* ---------- Umrisse: selbst gezeichnet, allgemeine Formen, Bug zeigt nach rechts (Türseite sichtbar) ---------- */
-/* Maßstab etwa 90 Einheiten pro Meter, Boden bei y = 286. Keine Herstellerzeichnung und kein Foto als Vorlage. */
 const CAR_COMMON={type:'caravan',bottom:250,wheel:{xs:[340],r:28},pivot:340,ext:[58,770],
   door:{x:170,y:84,w:56,h:160,r:10,win:{x:178,y:98,w:40,h:50,r:7}},
   tow:{from:584,hitch:752,jockey:700,y:246,beam:'M580 242 L754 244 L754 251 L580 253 Z',cover:'M584 248 L584 226 C584 216 594 212 606 212 L648 214 C668 216 684 230 690 248 Z'},
@@ -122,7 +129,6 @@ const CAR_COMMON={type:'caravan',bottom:250,wheel:{xs:[340],r:28},pivot:340,ext:
   bat:{x:242,y:198,w:56,h:38},fresh:{x:388,y:192,w:132,h:46},gas:{x:545,y:184,w:28,h:56},
   inlet:{x:148,y:204},cable:'M148 211 C146 246 112 270 66 286',cflow:'M148 211 L148 247 L268 247 L268 236',
   lamp:{x:238,y:88},tail:{x:58,y:192,w:5,h:34}};
-/* Fahrerhaus eines großen Transporters: kurzer Vorbau (etwa 0,8 m vor dem Vorderrad), steile Frontscheibe */
 const FRONT='L632 242 L664 244 C670 244 674 239 674 232 L674 214 C674 206 672 201 668 198 L656 192 C644 188 634 184 626 180';
 const CAB={win:'M528 110 L566 110 L608 166 L528 166 Z',seam:'M522 96 L522 242 M622 184 L616 216',
   mirror:'M616 146 L630 144 L634 168 L624 170 L621 178 L616 178 L618 170 Z',headPath:'M654 198 L672 202 L672 212 L650 209 Z',
@@ -194,11 +200,8 @@ const V={
   body:'M126 242 '+FRONT+' L566 100 C560 93 552 90 542 90 L126 88 C116 88 112 94 112 104 L112 228 C112 236 118 242 126 242 Z',
   windows:[{x:126,y:104,w:72,h:44,r:6}],door:{x:418,y:100,w:104,h:142,r:4,win:{x:428,y:108,w:84,h:44,r:6},slide:true},
   rail:'M240 152 L418 152',seams:'M118 104 L118 226',
-  /* Aufstelldach: hinten angeschlagen, vorn hochgestellt */
   popup:{hx:150,hy:88,fx:540,fy:30,fabric:'M150 88 L540 90 L540 30 Z',shell:'M140 86 L548 24',win:{x:440,y:50,w:70,h:22}},
   skylights:[],solar:{x:230,w:170,y:68,rot:-8.6},flow:'M315 63 L315 196',lamp:{x:470,y:94}},
- /* Kastenwagen auf Ducato/Boxer/Jumper-Basis (L3H2): 4,035 m Radstand, kurze Front, lange schräge Frontscheibe.
-    Selbst gezeichnete Annäherung nach dem Gesamteindruck, keine Konturen abgepaust, kein Logo, kein Dekor. */
  van_ducato:{type:'van',name:{de:'Kastenwagen (Ducato-Typ)',en:'Panel van (Ducato type)'},vb:[97,2,699],roofY:60,
   bottom:242,wheel:{xs:[237,600],r:32},pivot:418,ext:[140,656],flare:600,flareRear:237,
   body:'M154 242 L646 244 C652 244 656 240 656 234 L656 212 C656 206 654 202 650 200 L640 194 C634 191 630 189 627 187 L541 82 C534 72 524 64 510 61 C504 60 498 60 490 60 L154 60 C146 60 140 66 140 74 L140 228 C140 236 146 242 154 242 Z',
@@ -222,17 +225,8 @@ const TYPE_NAME={caravan:{de:'Wohnwagen',en:'Caravan'},motorhome:{de:'Wohnmobil'
 const DIMS={caravan_round:[215,430],caravan_box:[215,430],caravan_tandem:[215,480],mh_semi:[180,400],mh_alcove:[180,400],mh_integrated:[185,420],van_high:[180,404],van_popup:[180,404],van_ducato:[180,404]};
 
 // ---- leveling.js ----
-/* Keilrechnung der Camper Card. Reine Mathematik, ohne Home Assistant und ohne DOM, damit sie getestet werden kann. */
-
 const DEG = Math.PI / 180;
 
-/**
- * Berechnet, wie viele Zentimeter Keil unter welche Räder müssen.
- * Vorzeichen: pitch > 0 heißt Bug oder Front hoch, roll > 0 heißt rechte Seite hoch (in Fahrtrichtung).
- * Wohnwagen (kind 'caravan'): Keil unter die tiefe Seite, Bugrad hoch oder runter.
- * Wohnmobil und Van (kind 'wheels'): jedes Rad relativ zum höchsten Rad.
- * Werte innerhalb der Toleranz (Grad) gelten als waagerecht.
- */
 function calcLeveling({ kind, pitch = 0, roll = 0, track, base, tol = 0 }) {
   const p = Math.abs(pitch) <= tol ? 0 : pitch;
   const r = Math.abs(roll) <= tol ? 0 : roll;
@@ -253,10 +247,8 @@ function calcLeveling({ kind, pitch = 0, roll = 0, track, base, tol = 0 }) {
   return { kind, level: p === 0 && r === 0, wheels };
 }
 
-/** Rundet auf halbe Zentimeter, so wie die Karte Keile anzeigt. */
 const round5 = (v) => Math.round(v * 2) / 2;
 
-/** Nächstgelegene Keilstufe. Gibt null zurück, wenn keine Stufen eingetragen sind. */
 function nearestStep(v, steps) {
   if (!steps || !steps.length) return null;
   let bi = 0;
@@ -264,7 +256,6 @@ function nearestStep(v, steps) {
   return { index: bi + 1, value: steps[bi] };
 }
 
-/** Rechnet Neigungswerte in Grad um. Unterstützt °, %, rad und mrad. */
 function toDegrees(value, unit) {
   const u = String(unit || '°').trim().toLowerCase();
   if (u === '%') return Math.atan(value / 100) / DEG;
@@ -273,10 +264,6 @@ function toDegrees(value, unit) {
   return value;
 }
 
-/**
- * Wendet Achsentausch, Vorzeichen und Nullpunkt auf die Rohwerte der Sensoren an (alles in Grad).
- * Reihenfolge: erst tauschen, dann umkehren, dann Nullpunkt abziehen.
- */
 function correctTilt(raw, lv) {
   let a = raw.pitch, b = raw.roll;
   if (lv.swap_axes) [a, b] = [b, a];
@@ -287,13 +274,6 @@ function correctTilt(raw, lv) {
 }
 
 // ---- sources.js ----
-/* Ladequellen der Camper Card. Das BMS misst nur die Summe an der Batterie, die Quelle ergibt sich aus den Quell-Sensoren. */
-
-/**
- * st: Zustand je Sensor ('none' nicht zugewiesen, 'off' offline, 'ok') für power, solar, charger, chargerPower.
- * v: Werte (power und solar in W, charger true/false, chargerPower in W).
- * chargerMin: ab dieser Leistung des Zwischensteckers gilt das Ladegerät als ladend.
- */
 function chargeSources(st, v, chargerMin) {
   const pw = st.power === 'ok' ? v.power : null;
   const batCharging = pw !== null && pw > 5;
@@ -310,11 +290,6 @@ function chargeSources(st, v, chargerMin) {
   };
 }
 
-/**
- * Restlaufzeit der Batterie: beim Entladen bis leer, beim Laden bis voll.
- * soc in %, power mit Einheit (W, kW, A oder mA; positiv heißt laden), capAh Kapazität in Ah, volt Nennspannung.
- * Ergebnis { charging, hours } oder null, wenn sich nichts Sinnvolles sagen lässt (keine Kapazität, Ruhe, schon voll).
- */
 function batteryHours(soc, power, unit, capAh, volt) {
   if (!(capAh > 0) || !(volt > 0) || !Number.isFinite(soc) || !Number.isFinite(power)) return null;
   const u = String(unit || 'W').trim();
@@ -325,7 +300,6 @@ function batteryHours(soc, power, unit, capAh, volt) {
   return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
 }
 
-/** Kurzform für Anzeige und Tests: 'both', 'solar', 'charger', 'unknown' oder ''. */
 function sourceKey(src) {
   if (!src.batCharging) return '';
   if (src.solarActive && src.chargerActive) return 'both';
@@ -334,30 +308,65 @@ function sourceKey(src) {
   return src.unknown ? 'unknown' : '';
 }
 
-// ---- config.js ----
-/* Konfiguration der Camper Card: Standardwerte und Prüfung. Ohne DOM, damit sie getestet werden kann. */
+// ---- alarm.js ----
+const AL_MODES = [['away', 2, 'away'], ['night', 4, 'night'], ['home', 1, 'home'], ['vacation', 32, 'vacation'], ['custom_bypass', 16, 'custom']];
 
-/** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
+const alarmModes = (f) => AL_MODES.filter(([, bit]) => (Number(f) | 0) & bit).map(([m]) => m);
+
+function alarmKind(s) {
+  if (['disarmed', 'arming', 'pending', 'disarming', 'triggered'].includes(s)) return s;
+  return /^armed_/.test(s) ? 'armed' : 'other';
+}
+
+function alarmNeedsCode(state, a) {
+  if (!a || !a.code_format) return false;
+  return !(state === 'disarmed' && a.code_arm_required === false);
+}
+
+const openSensors = (a) => (a && a.open_sensors && typeof a.open_sensors === 'object' ? Object.entries(a.open_sensors) : []);
+
+const isAlarmo = (a) => !!a && ('open_sensors' in a || 'arm_mode' in a);
+
+function alarmRemaining(delay, lastChanged, now) {
+  const d = Number(delay), t0 = Date.parse(lastChanged);
+  if (!(d > 0) || !Number.isFinite(t0)) return null;
+  return Math.max(0, Math.min(d, Math.ceil(d - (now - t0) / 1000)));
+}
+
+function forceMode(last, modes) {
+  if (modes.includes(last)) return last;
+  if (modes.length !== 1 && modes.includes('away')) return 'away';
+  return modes[0] || null;
+}
+
+function alarmCall(entity, action, mode, code) {
+  const c = code ? { code } : {};
+  if (action === 'disarm') return ['alarm_control_panel', 'alarm_disarm', { entity_id: entity, ...c }];
+  if (action === 'force') {
+    const m = AL_MODES.find((x) => x[0] === mode);
+    return ['alarmo', 'arm', { entity_id: entity, mode: m ? m[2] : 'away', force: true, ...c }];
+  }
+  return ['alarm_control_panel', `alarm_arm_${mode}`, { entity_id: entity, ...c }];
+}
+
+// ---- config.js ----
 const ENTITY_KEYS = {
   battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
   fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', humidity_inside: 'humIn', temp_outside: 'tempOut',
   temp_fridge: 'tempFridge', temp_freezer: 'tempFreezer',
-  pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll',
+  pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll', alarm: 'alarm',
 };
 const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]) => [k, c]));
 const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 const VEHICLES = ['caravan', 'motorhome', 'van'];
-/** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
 const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
-  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside'];
-/** Höchstzahl frei belegbarer Schalter (switches:). */
+  'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'alarm'];
 const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
 const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-/** Keilstufen aus Text („3, 6, 9“), Zahl oder Liste. Ergebnis: aufsteigende positive Zahlen. */
 function parseSteps(s) {
   let arr = [];
   if (Array.isArray(s)) arr = s;
@@ -366,7 +375,6 @@ function parseSteps(s) {
   return arr.map(Number).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
 }
 
-/** Prüft die Rohkonfiguration und ergänzt Standardwerte. Wirft bei unbrauchbarer Eingabe. */
 function normalizeConfig(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('Camper Card: Konfiguration fehlt / configuration missing');
   let vehicle = VEHICLES.includes(raw.vehicle) ? raw.vehicle : (raw.outline && V[raw.outline] ? V[raw.outline].type : 'caravan');
@@ -376,14 +384,12 @@ function normalizeConfig(raw) {
   for (const key of [...Object.keys(ENTITY_KEYS), 'gas_availability', 'gas2_availability']) {
     if (typeof ent[key] === 'string' && ent[key].includes('.')) entities[key] = ent[key].trim();
   }
-  // Eigene Namen, intern nach Schlüssel der Karte. pump_name aus 0.1 gilt weiter, names.pump hat Vorrang.
   const names = {};
   const nm = raw.names && typeof raw.names === 'object' ? raw.names : {};
   const txt = (x) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, MAX_NAME) : null);
   for (const key of NAME_KEYS) { const n = txt(nm[key]); if (n) names[ENTITY_KEYS[key]] = n; }
   const pumpName = txt(raw.pump_name);
   if (pumpName && !names.pump) names.pump = pumpName;
-  // Frei belegbare Schalter: Liste aus { entity, name, icon } oder nur der Entität als Text.
   const switches = (Array.isArray(raw.switches) ? raw.switches : []).map((s) => {
     const o = typeof s === 'string' ? { entity: s } : (s && typeof s === 'object' ? s : {});
     const entity = typeof o.entity === 'string' && o.entity.includes('.') ? o.entity.trim() : null;
@@ -404,14 +410,13 @@ function normalizeConfig(raw) {
     names,
     charger_min_power: Math.max(0, cfgNum(raw.charger_min_power, 10)),
     charger_toggle: raw.charger_toggle === true,
-    // Restlaufzeit: Kapazität in Ah (ohne Angabe keine Restlaufzeit), Nennspannung für die Umrechnung von Watt.
     battery_capacity: cap > 0 ? cap : null,
     battery_voltage: cfgClamp(cfgNum(raw.battery_voltage, 12.8), 6, 60),
-    // Frostwarnung in °C, gilt für Tanks mit Wasser. Abschalten mit frost_warning: false.
     frost_warning: raw.frost_warning !== false,
     frost_temp: cfgClamp(cfgNum(raw.frost_temp, 3), -10, 10),
     humidity_max: cfgClamp(cfgNum(raw.humidity_max, 70), 40, 100),
     switches,
+    alarm_controls: raw.alarm_controls !== false,
     entities,
     leveling: {
       track: track !== null && track > 0 ? track : dims[0],
@@ -430,18 +435,11 @@ function normalizeConfig(raw) {
 }
 
 // ---- card.js ----
-/* Camper Card: die Karte selbst. Zeichnet die Seitenansicht und die Ansicht zum Ausrichten. */
-
-
-
-
-
-const VERSION = "0.3.1";
-const EX = 2.5, MAXA = 7, BUB = 20;
+const VERSION = "0.4.0";
+const EX = 2.5, MAXA = 7, BUB = 20, HOLD_MS = 900;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/* Kontext des laufenden Zeichnens. Wird nur während _render() gesetzt, damit die Zeichenfunktionen kurz bleiben. */
 let C = null;
 const t = (k) => (STRINGS[C.lang] && STRINGS[C.lang][k]) ?? STRINGS.en[k] ?? k;
 const nf = (v, d = 0) => new Intl.NumberFormat(C.locale, { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
@@ -455,7 +453,6 @@ const visA = () => clamp(-C.anim.p * EX, -MAXA, MAXA);
 const miniP = () => clamp(-C.anim.p * EX, -14, 14);
 const miniR = () => clamp(-C.anim.r * EX, -14, 14);
 const isOff = (s) => !s || s.state === 'unavailable' || s.state === 'unknown';
-/* Beschriftung einer Kachel oder eines Schalters: eigener Name, sonst Standardtext. Bei zwei Gasflaschen „Gas 1“ und „Gas 2“. */
 const twoGas = () => !!(C.cfg.entities.gas && C.cfg.entities.gas2);
 function nameOf(k, def) {
   const own = C.cfg.names && C.cfg.names[k];
@@ -464,22 +461,16 @@ function nameOf(k, def) {
   if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
   return def !== undefined ? def : t(k);
 }
-/* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
 const shortOf = (k, def) => { const own = C.cfg.names && C.cfg.names[k]; return own ? (own.length <= 10 ? esc(own) : '') : def; };
-/* Temperatur in °C, auch wenn der Sensor in °F misst. */
 const degC = (k) => (/F/.test(unitOf(k, '°C')) ? (val(k) - 32) * 5 / 9 : val(k));
-/* Frostgefahr für einen Tank mit Wasser. Für Tanks im Aufbau zählt zuerst die Innentemperatur, für Tanks unter dem Boden
-   zuerst die Außentemperatur. Ergebnis: Schlüssel der maßgeblichen Temperatur oder null. */
 function frostOf(k) {
   const b = C.d[k];
   if (!C.cfg.frost_warning || !b || st(k) !== 'ok' || val(k) <= 2) return null;
   for (const tk of b.under ? ['tempOut', 'tempIn'] : ['tempIn', 'tempOut']) if (st(tk) === 'ok') return degC(tk) < C.cfg.frost_temp ? tk : null;
   return null;
 }
-/* Zahl und Einheit mit festem Leerzeichen, damit die Einheit nicht allein in die nächste Zeile rutscht. */
 const NB = '\u00a0';
 const frostTxt = (tk) => `${t('frost')} · ${nf(val(tk), 1)}${NB}${esc(unitOf(tk, '°C'))}`;
-/* Dauer kurz und lesbar: Minuten, halbe Stunden, Stunden, Tage. */
 function dur(h) {
   if (h < 0.95) return `${Math.min(55, Math.max(5, Math.round(h * 12) * 5))}${NB}${t('uMin')}`;
   if (h < 10) { const r = Math.max(1, Math.round(h * 2) / 2); return `${nf(r, Number.isInteger(r) ? 0 : 1)}${NB}${t('uH')}`; }
@@ -487,21 +478,20 @@ function dur(h) {
   const d = Math.round(h / 24);
   return d > 30 ? t('over30') : `${nf(d)}${NB}${t('uDays')}`;
 }
-/* Restlaufzeit der Batterie als Text, leer ohne Kapazität, in Ruhe oder wenn ein Wert fehlt. */
 function runTxt() {
   if (st('battery') !== 'ok' || st('power') !== 'ok') return '';
   const r = batteryHours(val('battery'), val('power'), unitOf('power', 'W'), C.cfg.battery_capacity, C.cfg.battery_voltage);
   return r ? t(r.charging ? 'runFull' : 'runLeft').replace('{}', dur(r.hours)) : '';
 }
 
-/** Liest die zugewiesenen Entitäten: Zustand je Schlüssel ('none', 'off', 'ok'), Werte und Einheiten. */
 function readStates(hass, cfg) {
-  const out = { st: {}, v: {}, unit: {} };
+  const out = { st: {}, v: {}, unit: {}, al: null };
   for (const [ck, k] of Object.entries(ENTITY_KEYS)) {
     const id = cfg.entities[ck];
     if (!id) { out.st[k] = 'none'; continue; }
     const s = hass.states[id];
     if (isOff(s)) { out.st[k] = 'off'; continue; }
+    if (k === 'alarm') { out.st[k] = 'ok'; out.v[k] = s.state; out.al = { a: s.attributes || {}, lc: s.last_changed }; continue; }
     if (BOOL_KEYS.has(k)) { out.st[k] = 'ok'; out.v[k] = s.state === 'on'; continue; }
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
@@ -514,7 +504,6 @@ function readStates(hass, cfg) {
   return out;
 }
 
-/* ---------- Symbole (Linien-Icons, damit die Karte ohne Internet und ohne Icon-Paket auskommt) ---------- */
 const IC = {
   battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21.5 10.5v3"/><path d="M6.5 10.5v3M10 10.5v3"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
@@ -531,10 +520,12 @@ const IC = {
   snow: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>',
   hum: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/><path d="M9.6 16.6l4.8-5.2"/><circle cx="9.9" cy="12.4" r=".8"/><circle cx="14.1" cy="15.8" r=".8"/>',
   power: '<path d="M12 3.5v8"/><path d="M7 6.8a7 7 0 1 0 10 0"/>',
+  shield: '<path d="M12 3 5 6v5.5c0 4.2 2.9 7.9 7 9.5 4.1-1.6 7-5.3 7-9.5V6z"/>',
 };
+IC.shieldOk = IC.shield + '<path d="M9 12l2.2 2.2L15.5 10"/>';
+IC.shieldAl = IC.shield + '<path d="M12 8v4.5M12 15.6v.1"/>';
 const ic = (n, s = 20) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
 
-/* ---------- Seitenansicht ---------- */
 const rr = (x, y, w, h, r, a = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r || 0}" ${a}/>`;
 function windowEl(w, on, i) {
   const r = w.r || 6;
@@ -555,7 +546,6 @@ function hatchEl(h) {
   return rr(h.x, h.y, h.w, h.h, h.r, 'fill="none" stroke="var(--body-line)" stroke-width="1.1"')
     + (h.lock ? rr(h.x + h.w - 14, h.y + h.h / 2 - 3, 8, 6, 2, 'fill="var(--frame)" opacity=".7"') : rr(h.x + h.w / 2 - 4, h.y + 4, 8, 4, 2, 'fill="var(--frame)" opacity=".6"'));
 }
-/* Lüftungsgitter (zum Beispiel Kühlschrank) und Markisenkassette an der Dachkante */
 function ventEl(g) {
   let l = ''; for (let y = g.y + 4; y < g.y + g.h - 2; y += 4) l += `<line x1="${g.x + 4}" y1="${y}" x2="${g.x + g.w - 4}" y2="${y}"/>`;
   return `${rr(g.x, g.y, g.w, g.h, 3, 'fill="var(--plastic)"')}<g stroke="var(--body-line)" stroke-width="1.2" opacity=".8">${l}</g>`;
@@ -670,6 +660,13 @@ function srcText(src) {
   if (src.chargerActive) return t('viaCharger');
   return src.unknown ? t('srcUnknown') : '';
 }
+const AL_COLOR = { armed: 'var(--c-ok)', arming: 'var(--c-bat-mid)', pending: 'var(--c-bat-mid)', disarming: 'var(--c-bat-mid)', triggered: 'var(--c-bat-low)' };
+const alKind = () => (st('alarm') === 'ok' ? alarmKind(val('alarm')) : 'off');
+function shieldEl(D) {
+  const k = alKind(), c = AL_COLOR[k], x = D.x + D.w / 2 - 14, y = D.win.y + D.win.h + 10;
+  const mark = k === 'armed' ? 'M9 12l2.2 2.2L15.5 10' : k === 'triggered' ? 'M12 8v4.5M12 15.6v.1' : '';
+  return `<g class="${k === 'triggered' ? 'al-pulse' : ''}" transform="translate(${x} ${y}) scale(1.18)"><path d="${IC.shield.slice(9, -3)}" fill="${c || 'var(--body)'}" stroke="${c ? 'var(--body)' : 'var(--metal)'}" stroke-width="${c ? 1.6 : 2}" stroke-linejoin="round"/>${mark ? `<path d="${mark}" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}</g>`;
+}
 function inletEl(d, active) {
   const { x, y } = d.inlet;
   return `${active ? `<path d="${d.cable}" fill="none" stroke="var(--tire)" stroke-width="3.5" stroke-linecap="round"/>` : ''}
@@ -702,6 +699,7 @@ function vehicleEl(d) {
   if (d.frontWin) s += `<path d="${d.frontWin}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
   let i = 0; d.windows.forEach((w) => { s += windowEl(w, liOn, i++); });
   s += doorEl(d.door, liOn, i++);
+  if (st('alarm') !== 'none') s += shieldEl(d.door);
   if (d.cab) {
     const K = d.cab;
     s += `<path d="${K.win}" fill="url(#gGlass)" stroke="var(--frame)" stroke-width="2.5" stroke-linejoin="round"/>`;
@@ -723,11 +721,9 @@ function vehicleEl(d) {
   }
   (d.cut || []).forEach((c, j) => { s += cutEl(c, j); });
   (d.wheelhouse || []).forEach((w) => { const yb = w.y + w.h; s += `<path d="M${w.x} ${yb} L${w.x} ${yb - 14} Q${w.x} ${w.y} ${w.x + w.w / 2} ${w.y} Q${w.x + w.w} ${w.y} ${w.x + w.w} ${yb - 14} L${w.x + w.w} ${yb} Z" fill="var(--cut-line)" opacity=".5"/>`; });
-  // Frostgefahr: Rand in Warnfarbe und eine kleine Schneeflocke oben rechts im Tank.
   const snow = (b) => `<g class="not-small" transform="translate(${b.x + b.w - 18} ${b.y + 3}) scale(.6)" fill="none" stroke="var(--c-cold)" stroke-width="2.6" stroke-linecap="round">${IC.snow}</g>`;
   if (fresh !== 'none') s += tankEl('Fresh', d.fresh, 'var(--c-water)', fresh === 'ok' ? pct('fresh') : 0, fresh, shortOf('fresh', t('shortFresh')), fresh === 'ok' && (val('fresh') <= 10 || !!frostOf('fresh'))) + (frostOf('fresh') ? snow(d.fresh) : '');
   if (d.grey && grey !== 'none') s += tankEl('Grey', d.grey, 'var(--c-grey)', grey === 'ok' ? pct('grey') : 0, grey, shortOf('grey', t('shortGrey')), grey === 'ok' && (val('grey') >= 85 || !!frostOf('grey'))) + (frostOf('grey') ? snow(d.grey) : '');
-  // Gas: eine Flasche an ihrem Platz, zwei schmalere nebeneinander im selben Fach.
   const bottles = ['gas', 'gas2'].filter((k) => st(k) !== 'none');
   const gcx = d.gas.x + d.gas.w / 2, gw = 19;
   const gbox = bottles.length === 2 ? [{ ...d.gas, x: gcx - gw - 1.5, w: gw }, { ...d.gas, x: gcx + 1.5, w: gw }] : [d.gas];
@@ -792,7 +788,6 @@ function sideMiniSVG() {
    ${d.wheel.xs.map((x) => `<circle cx="${x}" cy="${286 - d.wheel.r}" r="${d.wheel.r + 4}" fill="var(--tire)"/>`).join('')}</g></svg>`;
 }
 
-/* ---------- Übersicht ---------- */
 const barOf = (p, c) => `<div class="t-b"><i style="width:${clamp(p, 0, 100)}%;background:${c}"></i></div>`;
 const miOf = (k) => { const id = C.cfg.entities[CFG_OF[k]]; return id ? ` data-mi="${esc(id)}" role="button" tabindex="0"` : ''; };
 function tile(k, icon, color, label, v, unit, bar, sub, subWarn) {
@@ -831,7 +826,6 @@ function tilesHTML() {
     if (ga === 'off') out.push(offTile(k, 'gas', nameOf(k)));
     else if (ga === 'ok') { const c = val(k) <= 15 ? 'var(--c-warn)' : 'var(--c-gas)'; out.push(tile(k, 'gas', c, nameOf(k), nf(val(k)), '%', barOf(val(k), c))); }
   }
-  // Innen: Temperatur mit der Luftfeuchte als zweiter Zeile. Ohne Innentemperatur bekommt die Luftfeuchte eine eigene Kachel.
   const ti = st('tempIn'), hu = st('humIn'), humHigh = hu === 'ok' && val('humIn') >= C.cfg.humidity_max;
   const humVal = () => `${nf(val('humIn'))}${NB}${esc(unitOf('humIn', '%'))}`;
   if (ti === 'off') out.push(offTile('tempIn', 'temp', nameOf('tempIn')));
@@ -859,7 +853,6 @@ function actsHTML() {
     if (k === 'pump' && s === 'ok' && st('fresh') === 'ok' && val('fresh') <= 5) { sub = t('tankLow'); cls = 'warn'; }
     return actBtn(`data-k="${k}" data-fid="act-${k}"`, c, on, s === 'off', ic(icon, 17), nameOf(k), sub, cls);
   }).join('');
-  // Frei belegbare Schalter: Name aus der Konfiguration, sonst aus Home Assistant. Symbol über ha-icon, sonst ein eigenes.
   const haIcon = typeof customElements !== 'undefined' && !!customElements.get('ha-icon');
   return fixed + C.cfg.switches.map((w, i) => {
     const s = C.hass.states[w.entity], off = isOff(s), a = (s && s.attributes) || {};
@@ -869,6 +862,47 @@ function actsHTML() {
     return actBtn(`data-sw="${i}" data-fid="act-sw${i}"`, 'var(--c-sw)', on, off, ico, esc(w.name || a.friendly_name || w.entity), off ? t('offline') : on ? t('on') : t('off'));
   }).join('');
 }
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const fname = (id) => { const s = C.hass.states[id]; return esc((s && s.attributes && s.attributes.friendly_name) || id); };
+const alModeTxt = (m) => (AL_MODES.some((x) => x[0] === m) ? t('alM_' + m) : esc(m));
+function alarmText(s) {
+  const k = alarmKind(s);
+  if (k === 'armed') return `${t('alArmed')} · ${alModeTxt(s.slice(6))}`;
+  return k === 'other' ? esc(s) : t('alS_' + k);
+}
+const sensTxt = (a) => openSensors(a).map(([e, v]) => `${fname(e)} ${t(v === 'unavailable' ? 'alUnav' : 'alOpen')}`).join(', ');
+const alBtn = (act, m, label, cls = '') => `<button class="ab ${cls}" data-a="al" data-act="${act}" data-m="${m}" data-fid="al-${act}-${m}">${label}</button>`;
+function alarmHTML() {
+  const s = st('alarm');
+  if (s === 'none') return '';
+  const head = (icon, main, sub) => `<div class="al-h"${miOf('alarm')}><span class="t-i">${ic(icon, 19)}</span><span class="al-t"><span class="t-l">${nameOf('alarm')}</span><b>${main}</b>${sub ? `<small>${sub}</small>` : ''}</span></div>`;
+  if (s === 'off') return `<div class="al off">${head('shield', t('offline'))}</div>`;
+  const a = C.al.a, sv = val('alarm'), k = alarmKind(sv), sens = openSensors(a), failed = k === 'disarmed' && sens.length > 0;
+  const rem = k === 'arming' || k === 'pending' ? alarmRemaining(a.delay, C.al.lc, Date.now()) : null;
+  const byp = k === 'armed' && Array.isArray(a.bypassed_sensors) ? a.bypassed_sensors.map(fname).join(', ') : '';
+  const sub = [rem !== null ? t('alLeft').replace('{}', `<span data-cd>${mmss(rem)}</span>`) : '', a.changed_by ? t('alBy').replace('{}', esc(a.changed_by)) : '',
+    byp ? t('alBypass').replace('{}', byp) : ''].filter(Boolean).join(' · ');
+  const warn = failed ? `${t('alFailed')}: ${sensTxt(a)}` : (k === 'triggered' || k === 'pending') && sens.length ? t('alCause').replace('{}', sensTxt(a)) : '';
+  let btns = '';
+  if (C.cfg.alarm_controls) {
+    const code = alarmNeedsCode(sv, a), modes = alarmModes(a.supported_features), b = [];
+    if (k === 'disarmed') {
+      modes.forEach((m) => b.push(alBtn('arm', m, t('alM_' + m))));
+      const fm = failed && isAlarmo(a) && C.hass.services && C.hass.services.alarmo ? forceMode(C.alMode, modes) : null;
+      if (fm) b.push(alBtn('force', fm, `${t('alForce')} · ${t('alM_' + fm)}`, 'warn'));
+    } else if (k !== 'other' && k !== 'disarming') {
+      b.push(code ? alBtn('disarm', '', t('alDisarm')) : `<button class="ab hold" data-hold="disarm" data-fid="al-hold">${t('alDisarm')}<small>${t('alHold')}</small></button>`);
+    }
+    if (b.length) btns = `<div class="al-b">${code ? `<input class="al-c" data-code type="password" ${a.code_format === 'number' ? 'inputmode="numeric" ' : ''}autocomplete="off" placeholder="${t('alCode')}" aria-label="${t('alCode')}" data-fid="al-code">` : ''}${b.join('')}</div>`;
+  }
+  const err = C.alErr ? `<div class="al-w">${t('alErr')}: ${esc(C.alErr)}</div>` : '';
+  return `<div class="al k-${k}" style="--c:${AL_COLOR[k] || 'var(--secondary-text-color)'}">${head(k === 'armed' ? 'shieldOk' : k === 'triggered' ? 'shieldAl' : 'shield', alarmText(sv), sub)}${warn ? `<div class="al-w">${warn}</div>` : ''}${err}${btns}</div>`;
+}
+function alarmBanner() {
+  if (alKind() !== 'triggered') return '';
+  const by = openSensors(C.al.a).length ? t('alCause').replace('{}', sensTxt(C.al.a)) : '';
+  return `<div class="lv-st" style="--pc:var(--c-bat-low)">${ic('shieldAl', 22)}<div>${t('alS_triggered')}${by ? `<small>${by}</small>` : ''}</div></div>`;
+}
 function overviewHTML(T) {
   const res = T.state === 'ok' ? calcNow(T) : null;
   const top = T.state === 'ok' ? `<div class="hero-top"><div class="ht-l">
@@ -876,15 +910,14 @@ function overviewHTML(T) {
       ${T.hasP ? `<div class="ht-v"><div><b>${sgn(T.pitch)}°</b><small>${t('long')}</small></div></div>` : ''}
     </div><button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button></div>`
     : T.state === 'off' ? `<div class="hero-top"><div class="ht-l"></div><span class="pill" style="--pc:var(--secondary-text-color);cursor:default">${t('tiltOff')}</span></div>` : '';
-  const tiles = tilesHTML(), acts = actsHTML();
+  const tiles = tilesHTML(), acts = actsHTML(), al = alarmHTML();
   const note = t('approx') + (T.state === 'ok' ? ` · ${t('exag')}` : '');
-  return `<div class="hero">${top}${sceneSVG(T.state === 'ok')}<div class="hero-note">${note}</div></div>
+  return `<div class="hero">${top}${sceneSVG(T.state === 'ok')}<div class="hero-note">${note}</div></div>${al}
     ${tiles.length ? `<div class="tiles">${tiles.join('')}</div>` : ''}
     ${acts ? `<div class="acts">${acts}</div>` : '<div class="cc-foot"></div>'}
-    ${(!tiles.length && !acts && T.state === 'none') ? `<div class="cc-empty">${t('empty')}</div>` : ''}`;
+    ${(!tiles.length && !acts && !al && T.state === 'none') ? `<div class="cc-empty">${t('empty')}</div>` : ''}`;
 }
 
-/* ---------- Ausrichten ---------- */
 function tilt() {
   const lv = C.cfg.leveling;
   let a = 'pitch', b = 'roll';
@@ -985,13 +1018,13 @@ function stepsHTML(res) {
   return li.length ? `<ol class="steps">${li.join('')}</ol>` : '';
 }
 function levelHTML(T) {
-  if (T.state === 'off') return `<div class="lv"><div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
+  if (T.state === 'off') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
   const res = calcNow(T), ok = res.level, lv = C.cfg.leveling, tol = lv.tolerance, car = C.cfg.vehicle === 'caravan';
   const pTxt = Math.abs(T.pitch) <= tol ? t('flat') : T.pitch > 0 ? t(car ? 'noseHigh' : 'frontHigh') : t(car ? 'noseLow' : 'frontLow');
   const rTxt = Math.abs(T.roll) <= tol ? t('flat') : T.roll > 0 ? t('rightHigh') : t('leftHigh');
   const dims = `${t('dTrack')} ${nf(lv.track)} cm · ${car ? t(C.d.axles === 2 ? 'dBaseT' : 'dBase') : t('dWheel')} ${nf(lv.base)} cm${lv.defaults ? ` (${t('defaults')})` : ''}`;
   const partial = (T.hasP && T.hasR) ? '' : ` ${t('partial')}`;
-  return `<div class="lv">
+  return `<div class="lv">${alarmBanner()}
     <div class="lv-st" style="--pc:${ok ? 'var(--c-ok)' : 'var(--c-warn)'}">${ic(ok ? 'check' : 'warn', 22)}<div>${ok ? t('levelOk') : t('notLevel')}</div></div>
     ${stepsHTML(res)}
     <div class="lv-g">
@@ -1006,7 +1039,6 @@ function levelHTML(T) {
   </div>`;
 }
 
-/* ---------- Aussehen ---------- */
 const CSS = `
 *,*::before,*::after{box-sizing:border-box}
 :host{display:block;
@@ -1110,10 +1142,32 @@ svg:not([data-small]) .only-small{display:none}
 .steps li.over{border-color:color-mix(in srgb,var(--c-bat-low) 60%,transparent)}
 .steps li.over .val{color:var(--c-bat-low)}
 .lv-note{font-size:12px;color:var(--secondary-text-color);padding:2px 4px;line-height:1.35}
-@media (prefers-reduced-motion:reduce){.flow{animation:none}.t-b i{transition:none}}
+.al{--c:var(--secondary-text-color);margin:8px 8px 0;padding:9px 11px;border:1px solid var(--divider-color);border-radius:12px;display:grid;gap:8px}
+.al-h{display:grid;grid-template-columns:34px minmax(0,1fr);column-gap:10px;align-items:center;min-width:0}
+.al-h[data-mi]{cursor:pointer}
+.al-t{min-width:0}
+.al-t b{display:block;font-size:16px;font-weight:500;line-height:1.25}
+.al-t small{display:block;font-size:11.5px;color:var(--secondary-text-color);line-height:1.25;font-variant-numeric:tabular-nums}
+.al.off b{font-size:14px;font-weight:400;color:var(--secondary-text-color)}
+.al-w{font-size:12.5px;line-height:1.3;color:var(--c-warn)}
+.al.k-triggered{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.al.k-triggered b{color:var(--c)}
+.al.k-triggered .al-w{color:var(--primary-text-color)}
+.al-b{display:flex;flex-wrap:wrap;gap:8px}
+.ab{position:relative;overflow:hidden;flex:1 1 92px;appearance:none;min-height:40px;padding:6px 12px;border-radius:10px;border:1px solid var(--divider-color);background:transparent;cursor:pointer;font-size:13px;font-weight:500;line-height:1.15}
+.ab small{display:block;font-size:11px;font-weight:400;color:var(--secondary-text-color)}
+.ab:hover{background:color-mix(in srgb,var(--secondary-text-color) 8%,transparent)}
+.ab.warn{color:var(--c-warn);border-color:color-mix(in srgb,var(--c-warn) 50%,transparent)}
+.hold{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.hold::after{content:"";position:absolute;left:0;bottom:0;height:4px;width:0;background:var(--c)}
+.hold.holding::after{width:100%;transition:width ${HOLD_MS}ms linear}
+.al-c{flex:1 1 92px;min-width:0;min-height:40px;padding:6px 10px;border-radius:10px;border:1px solid var(--divider-color);background:transparent;color:inherit;font:inherit;font-size:15px}
+.al-c.err{border-color:var(--c-warn)}
+.al-pulse,.k-triggered .t-i{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.flow,.al-pulse,.k-triggered .t-i{animation:none}.t-b i{transition:none}}
 `;
 
-/* ---------- Element ---------- */
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 class CamperCard extends HTMLElement {
@@ -1126,8 +1180,14 @@ class CamperCard extends HTMLElement {
     this._raf = null; this._sig = ''; this._first = true;
     this.shadowRoot.addEventListener('click', (e) => this._onClick(e));
     this.shadowRoot.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-mi]')) { e.preventDefault(); this._onClick(e); }
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const hb = e.target.closest && e.target.closest('[data-hold]');
+      if (hb) { e.preventDefault(); if (!e.repeat) this._holdStart(hb); return; }
+      if (e.target.closest && e.target.closest('[data-mi]')) { e.preventDefault(); this._onClick(e); }
     });
+    this.shadowRoot.addEventListener('pointerdown', (e) => { const hb = e.target.closest && e.target.closest('[data-hold]'); if (hb) { e.preventDefault(); this._holdStart(hb, e); } });
+    this.shadowRoot.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('[data-hold]')) e.preventDefault(); });
+    this.shadowRoot.addEventListener('focusout', () => { if (this._pend) setTimeout(() => this._flush(), 400); });
   }
   static getConfigElement() { return document.createElement('camper-card-editor'); }
   static getStubConfig() { return { vehicle: 'caravan', outline: 'caravan_round', entities: {} }; }
@@ -1136,7 +1196,7 @@ class CamperCard extends HTMLElement {
     this._hass = h;
     if (!this._config) return;
     const sig = this._signature();
-    if (sig !== this._sig) { this._sig = sig; this._render(); }
+    if (sig !== this._sig) { this._sig = sig; if (this._busy()) this._pend = true; else this._render(); }
   }
   get hass() { return this._hass; }
   getCardSize() { return 7; }
@@ -1148,12 +1208,14 @@ class CamperCard extends HTMLElement {
   disconnectedCallback() {
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
     if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+    clearInterval(this._cdT); this._cdT = null;
   }
-  /** Nur neu zeichnen, wenn sich ein zugewiesener Zustand, das Thema oder die Sprache ändert. */
   _signature() {
     const h = this._hass, c = this._config;
     const parts = [h.themes && h.themes.darkMode ? 'd' : 'l', (h.locale && h.locale.language) || h.language || ''];
     for (const id of Object.values(c.entities)) { const s = h.states[id]; parts.push(s ? `${s.state}|${(s.attributes && s.attributes.unit_of_measurement) || ''}` : '-'); }
+    const al = c.entities.alarm && h.states[c.entities.alarm];
+    if (al) { const a = al.attributes || {}; parts.push(JSON.stringify([a.open_sensors, a.bypassed_sensors, a.delay, a.changed_by, a.code_format, a.code_arm_required, a.supported_features, al.last_changed])); }
     for (const w of c.switches) { const s = h.states[w.entity]; parts.push(s ? `${s.state}|${(s.attributes && (s.attributes.friendly_name + s.attributes.icon)) || ''}` : '-'); }
     return parts.join(';');
   }
@@ -1161,7 +1223,9 @@ class CamperCard extends HTMLElement {
     if (!this._config || !this._root) return;
     if (!this._hass) { this._root.innerHTML = ''; return; }
     const cfg = this._config, hass = this._hass, data = readStates(hass, cfg);
-    C = { cfg, hass, lang: langOf(hass, cfg), locale: (hass.locale && hass.locale.language) || hass.language || 'en', raw: data.st, v: data.v, unit: data.unit, anim: this._anim, d: V[cfg.outline] };
+    C = { cfg, hass, lang: langOf(hass, cfg), locale: (hass.locale && hass.locale.language) || hass.language || 'en', raw: data.st, v: data.v, unit: data.unit, al: data.al, alMode: this._ui.alMode, alErr: this._ui.alErr, anim: this._anim, d: V[cfg.outline] };
+    this._al = data.al;
+    const ci = this._root.querySelector('[data-code]'), code = ci ? ci.value : '';
     try {
       this.toggleAttribute('dark', !!(hass.themes && hass.themes.darkMode));
       const T = tilt();
@@ -1173,15 +1237,57 @@ class CamperCard extends HTMLElement {
       const v = this._ui.view;
       const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       this._root.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
+      if (code) { const n = this._root.querySelector('[data-code]'); if (n) n.value = code; }
       if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus(); }
     } finally { C = null; }
     this._fit();
     this._startAnim();
+    this._countdown();
+  }
+  _busy() { const a = this.shadowRoot.activeElement; return !!this._hold || !!(a && a.dataset && a.dataset.code !== undefined); }
+  _flush() { if (this._pend && !this._busy()) { this._pend = false; this._render(); } }
+  _countdown() {
+    clearInterval(this._cdT); this._cdT = null;
+    if (!this._root.querySelector('[data-cd]')) return;
+    this._cdT = setInterval(() => {
+      const al = this._al, r = al ? alarmRemaining(al.a.delay, al.lc, Date.now()) : null;
+      this._root.querySelectorAll('[data-cd]').forEach((e) => { e.textContent = mmss(r || 0); });
+      if (!r) { clearInterval(this._cdT); this._cdT = null; }
+    }, 1000);
+  }
+  _alarm(act, mode) {
+    const id = this._config.entities.alarm, h = this._hass;
+    if (!id || !h) return;
+    const inp = this._root.querySelector('[data-code]'), code = inp ? inp.value.trim() : '';
+    if (inp && !code) { inp.classList.add('err'); inp.focus(); return; }
+    if (inp) inp.value = '';
+    if (act === 'arm') this._ui.alMode = mode;
+    this._ui.alErr = '';
+    const [d, s, data] = alarmCall(id, act, mode, code);
+    Promise.resolve(h.callService(d, s, data)).catch((e) => {
+      this._ui.alErr = (e && e.message) || '?'; this._render();
+      setTimeout(() => { this._ui.alErr = ''; this._render(); }, 8000);
+    });
+  }
+  _holdStart(el, ev) {
+    if (this._hold) return;
+    el.classList.add('holding');
+    const x = ev ? ev.clientX : 0, y = ev ? ev.clientY : 0;
+    const evs = ['pointerup', 'pointercancel', 'keyup', 'blur'];
+    const mv = (e) => { if (Math.abs(e.clientX - x) + Math.abs(e.clientY - y) > 24) end(); };
+    const end = () => {
+      clearTimeout(this._hold.t);
+      evs.forEach((n) => window.removeEventListener(n, end)); window.removeEventListener('pointermove', mv);
+      el.classList.remove('holding'); this._hold = null; this._flush();
+    };
+    this._hold = { t: setTimeout(() => { end(); this._alarm(el.dataset.hold, ''); }, HOLD_MS) };
+    evs.forEach((n) => window.addEventListener(n, end)); if (ev) window.addEventListener('pointermove', mv);
   }
   _onClick(e) {
     const el = e.target.closest && e.target.closest('[data-a],[data-mi]');
     if (!el) return;
     if (el.dataset.a === 'view') { this._ui.view = el.dataset.v; this._render(); return; }
+    if (el.dataset.a === 'al') { this._alarm(el.dataset.act, el.dataset.m); return; }
     if (el.dataset.a === 'toggle') {
       const sw = el.dataset.sw !== undefined ? this._config.switches[+el.dataset.sw] : null;
       const id = sw ? sw.entity : this._config.entities[CFG_OF[el.dataset.k]];
@@ -1227,25 +1333,17 @@ class CamperCard extends HTMLElement {
 const CARD_VERSION = VERSION;
 
 // ---- editor.js ----
-/* Camper Card: Karten-Editor. Nutzt das Formular von Home Assistant (ha-form), damit niemand YAML braucht. */
-
-
-
-
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
-  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll'];
+  'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll', 'alarm'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
 const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
   'frost_temp', 'humidity_max'];
-/* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
 const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
 const ONOFF = { entity: { domain: ['switch', 'light', 'input_boolean'] } };
 const empty = (v) => v === undefined || v === null || v === '';
-/* Frei belegbare Schalter stehen im Formular als sw1, sw1_name, sw1_icon usw., in der Konfiguration unter switches. */
 const SLOTS = Array.from({ length: MAX_SWITCHES }, (_, i) => i + 1);
 
-/** Formulardaten sind flach, die gespeicherte Konfiguration ist gegliedert (entities, leveling, names, switches). */
 function flattenConfig(cfg) {
   const d = {};
   for (const k of TOP_FIELDS) if (!empty(cfg[k])) d[k] = cfg[k];
@@ -1254,6 +1352,7 @@ function flattenConfig(cfg) {
   for (const k of NAME_KEYS) if (cfg.names && !empty(cfg.names[k])) d['name_' + k] = cfg.names[k];
   if (empty(d.name_pump) && !empty(cfg.pump_name)) d.name_pump = cfg.pump_name;
   d.frost_warning = cfg.frost_warning !== false;
+  d.alarm_controls = cfg.alarm_controls !== false;
   (Array.isArray(cfg.switches) ? cfg.switches : []).slice(0, MAX_SWITCHES).forEach((s, i) => {
     const o = typeof s === 'string' ? { entity: s } : s || {};
     if (empty(o.entity)) return;
@@ -1268,13 +1367,13 @@ function unflattenConfig(data, prev) {
   for (const k of TOP_FIELDS) if (!empty(data[k]) && data[k] !== false) out[k] = data[k];
   const ent = {}; for (const k of ENT_FIELDS) if (!empty(data[k])) ent[k] = data[k];
   const lv = {}; for (const k of LV_FIELDS) if (!empty(data[k]) && data[k] !== false) lv[k] = data[k];
-  // Fahrzeugtyp gewechselt: passenden Umriss setzen.
   if (out.vehicle && (!out.outline || !V[out.outline] || V[out.outline].type !== out.vehicle)) out.outline = GROUPS[out.vehicle][0];
   out.entities = ent;
   if (Object.keys(lv).length) out.leveling = lv;
   const names = {}; for (const k of NAME_KEYS) if (typeof data['name_' + k] === 'string' && data['name_' + k].trim()) names[k] = data['name_' + k].trim();
   if (Object.keys(names).length) out.names = names;
   if (data.frost_warning === false) out.frost_warning = false;
+  if (data.alarm_controls === false) out.alarm_controls = false;
   const sw = [];
   for (const i of SLOTS) {
     if (empty(data[`sw${i}`])) continue;
@@ -1287,7 +1386,6 @@ function unflattenConfig(data, prev) {
   return out;
 }
 
-/* In Node (Tests) gibt es kein HTMLElement. Die reinen Funktionen oben sollen trotzdem testbar sein. */
 const EditorBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 class CamperCardEditor extends EditorBase {
   constructor() {
@@ -1303,7 +1401,6 @@ class CamperCardEditor extends EditorBase {
   get _L() { const lang = langOf(this._hass, this._config); return (k) => STRINGS[lang][k] ?? STRINGS.en[k] ?? k; }
   get _lang() { return langOf(this._hass, this._config); }
 
-  /** ha-form wird von Home Assistant erst bei Bedarf geladen. Notfalls über ein eingebautes Karten-Editor-Element nachladen. */
   async _ensureForm() {
     if (customElements.get('ha-form')) return true;
     try {
@@ -1374,6 +1471,7 @@ class CamperCardEditor extends EditorBase {
     if (s.name === 'battery_capacity') return L('ed_capacity_help');
     if (s.name === 'frost_warning') return L('ed_frost_help');
     if (s.name === 'sw1') return L('ed_sw_help');
+    if (s.name === 'alarm') return L('ed_alarm_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -1412,11 +1510,13 @@ class CamperCardEditor extends EditorBase {
         { name: 'pump', selector: ONOFF },
         { name: 'light_inside', selector: ONOFF }, { name: 'light_outside', selector: ONOFF },
       ]),
-      // Immer ein freier Platz mehr als belegt, höchstens MAX_SWITCHES.
       g('g_extra', SLOTS.slice(0, Math.min(MAX_SWITCHES, c.switches.length + 1)).flatMap((i) => [
         { name: `sw${i}`, selector: { entity: { domain: ['switch', 'light', 'input_boolean', 'fan'] } } },
         { name: `sw${i}_name`, selector: { text: {} } }, { name: `sw${i}_icon`, selector: { icon: {} } },
       ])),
+      g('g_alarm', [
+        { name: 'alarm', selector: { entity: { domain: ['alarm_control_panel'] } } }, { name: 'alarm_controls', selector: { boolean: {} } },
+      ]),
       g('g_level', [
         { name: 'pitch', selector: NUMERIC }, { name: 'roll', selector: NUMERIC },
         { name: 'track', selector: num(50, 400, 1, 'cm') }, { name: 'base', selector: num(50, 1200, 1, 'cm') },
@@ -1440,7 +1540,6 @@ class CamperCardEditor extends EditorBase {
     }
     this._updateZero();
   }
-  /** Aktuelle Neigung ohne Nullpunkt (in Grad), oder null, wenn ein Sensor fehlt oder offline ist. */
   _rawTilt() {
     const h = this._hass, e = (this._config && this._config.entities) || {};
     if (!h || !e.pitch || !e.roll) return null;
@@ -1474,9 +1573,6 @@ class CamperCardEditor extends EditorBase {
 }
 
 // ---- register.js ----
-/* Camper Card: Elemente anmelden und in der Kartenauswahl von Home Assistant eintragen. */
-
-
 if (!customElements.get('camper-card')) customElements.define('camper-card', CamperCard);
 if (!customElements.get('camper-card-editor')) customElements.define('camper-card-editor', CamperCardEditor);
 window.customCards = window.customCards || [];

@@ -1,13 +1,13 @@
 /* Baut dist/camper-card.js aus den Modulen in src/. Ohne fremde Pakete: Module werden in fester Reihenfolge
    zusammengefügt, import-Zeilen entfernt und export-Schlüsselwörter gestrichen. Ergebnis ist eine einzelne Datei,
-   die Home Assistant ohne Internet laden kann. */
+   die Home Assistant ohne Internet laden kann. Ganze Kommentarzeilen werden dabei entfernt, damit die Datei klein bleibt. */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const ORDER = ['i18n.js', 'vehicles.js', 'leveling.js', 'sources.js', 'config.js', 'card.js', 'editor.js', 'register.js'];
+const ORDER = ['i18n.js', 'vehicles.js', 'leveling.js', 'sources.js', 'alarm.js', 'config.js', 'card.js', 'editor.js', 'register.js'];
 
 let out = `/*! Camper Card ${pkg.version} | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */\n(() => {\n'use strict';\n`;
 const names = new Set();
@@ -21,6 +21,8 @@ for (const f of ORDER) {
     if (names.has(m[1])) throw new Error(`Name doppelt auf oberster Ebene: ${m[1]} (${f})`);
     names.add(m[1]);
   }
+  // Nur Kommentare, die ganze Zeilen einnehmen. Steht hinter */ noch Code, bleibt der Kommentar stehen.
+  src = src.replace(/^[ \t]*\/\*(?!!)(?:(?!\*\/)[\s\S])*\*\/[ \t]*\r?\n/gm, '').replace(/^[ \t]*\/\/.*\r?\n/gm, '');
   out += `\n// ---- ${f} ----\n${src.trim()}\n`;
 }
 out = out.replace("'__VERSION__'", JSON.stringify(pkg.version));
