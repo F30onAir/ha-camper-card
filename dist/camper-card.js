@@ -1,4 +1,4 @@
-/*! Camper Card 0.4.1 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.4.2 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
@@ -435,7 +435,7 @@ function normalizeConfig(raw) {
 }
 
 // ---- card.js ----
-const VERSION = "0.4.1";
+const VERSION = "0.4.2";
 const EX = 2.5, MAXA = 7, BUB = 20, HOLD_MS = 900;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1170,6 +1170,22 @@ svg:not([data-small]) .only-small{display:none}
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const keyOf = (n) => (n.nodeType === 1 ? n.getAttribute('data-fid') || n.getAttribute('data-tile') || '' : '');
+function morph(old, neu) {
+  const a = Array.from(old.childNodes), b = Array.from(neu.childNodes);
+  b.forEach((n, i) => {
+    const o = a[i];
+    if (!o) { old.appendChild(n); return; }
+    if (o.nodeName !== n.nodeName || keyOf(o) !== keyOf(n)) { old.replaceChild(n, o); return; }
+    if (o.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
+    const fit = o.hasAttribute('data-vb');
+    for (const { name } of Array.from(o.attributes)) if (!n.hasAttribute(name) && !(fit && (name === 'style' || name === 'data-small'))) o.removeAttribute(name);
+    for (const { name, value } of Array.from(n.attributes)) if (o.getAttribute(name) !== value) o.setAttribute(name, value);
+    morph(o, n);
+  });
+  for (let i = a.length - 1; i >= b.length; i--) old.removeChild(a[i]);
+}
+
 class CamperCard extends HTMLElement {
   constructor() {
     super();
@@ -1242,9 +1258,11 @@ class CamperCard extends HTMLElement {
       const name = cfg.name || TYPE_NAME[cfg.vehicle][C.lang];
       const v = this._ui.view;
       const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
-      this._root.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
-      if (code) { const n = this._root.querySelector('[data-code]'); if (n) n.value = code; }
-      if (fid) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
+      const tpl = document.createElement('template');
+      tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
+      morph(this._root, tpl.content);
+      if (code) { const n = this._root.querySelector('[data-code]'); if (n && !n.value) n.value = code; }
+      if (fid && !ae.isConnected) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
     } finally { C = null; }
     this._fit();
     this._startAnim();
