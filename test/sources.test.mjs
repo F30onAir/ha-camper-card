@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chargeSources, sourceKey } from '../src/sources.js';
+import { chargeSources, sourceKey, solarTotal, toW } from '../src/sources.js';
 
 const ok = { power: 'ok', solar: 'ok', charger: 'ok', chargerPower: 'ok' };
 const run = (v, st = ok, min = 10) => sourceKey(chargeSources(st, v, min));
@@ -69,4 +69,18 @@ test('Restlaufzeit: keine Angabe ohne Kapazität, in Ruhe, wenn voll oder ohne W
   assert.equal(batteryHours(99.5, 40, 'W', 100, 12.8), null);
   assert.equal(batteryHours(NaN, -40, 'W', 100, 12.8), null);
   assert.equal(batteryHours(50, 0.3, 'A', 100, 12.8), null); // 3,8 W gilt als Ruhe
+});
+
+test('0.5: Zwei Solarquellen werden in W addiert, offline zählt nicht', () => {
+  assert.deepEqual(solarTotal([]), { st: 'none', w: 0 });
+  assert.deepEqual(solarTotal([{ st: 'ok', v: 210, unit: 'W' }]), { st: 'ok', w: 210 });
+  assert.deepEqual(solarTotal([{ st: 'ok', v: 210, unit: 'W' }, { st: 'ok', v: 0.095, unit: 'kW' }]), { st: 'ok', w: 305 });
+  assert.deepEqual(solarTotal([{ st: 'off' }, { st: 'ok', v: 95, unit: 'W' }]), { st: 'ok', w: 95 });
+  assert.deepEqual(solarTotal([{ st: 'off' }, { st: 'off' }]), { st: 'off', w: 0 });
+  assert.deepEqual(solarTotal([{ st: 'none' }, { st: 'ok', v: 40 }]), { st: 'ok', w: 40 });
+  assert.equal(toW(1.2, 'kW'), 1200);
+  assert.equal(toW(12, 'W'), 12);
+  // Summe beider Quellen erkennt Solar als Ladequelle, auch wenn jede allein unter 5 W liegt
+  const w = solarTotal([{ st: 'ok', v: 4, unit: 'W' }, { st: 'ok', v: 4, unit: 'W' }]).w;
+  assert.equal(sourceKey(chargeSources({ power: 'ok', solar: 'ok', charger: 'none', chargerPower: 'none' }, { power: 7, solar: w }, 10)), 'solar');
 });

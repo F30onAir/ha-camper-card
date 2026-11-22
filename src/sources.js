@@ -36,6 +36,22 @@ export function batteryHours(soc, power, unit, capAh, volt) {
   return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
 }
 
+/** Leistung in W, auch wenn der Sensor kW meldet. */
+export const toW = (v, unit) => (String(unit || '').trim() === 'kW' ? v * 1000 : v);
+
+/**
+ * Summe mehrerer Solarquellen (z. B. Dach und Solartasche) in W.
+ * parts: [{ st, v, unit }] mit st 'none', 'off' oder 'ok'. Offline-Quellen zählen nicht mit.
+ * Ergebnis { st, w }: 'none' ohne Quelle, 'off' wenn keine Quelle einen Wert hat, sonst 'ok'.
+ */
+export function solarTotal(parts) {
+  const used = parts.filter((p) => p.st !== 'none');
+  if (!used.length) return { st: 'none', w: 0 };
+  const ok = used.filter((p) => p.st === 'ok');
+  if (!ok.length) return { st: 'off', w: 0 };
+  return { st: 'ok', w: ok.reduce((s, p) => s + toW(p.v, p.unit), 0) };
+}
+
 /** Kurzform für Anzeige und Tests: 'both', 'solar', 'charger', 'unknown' oder ''. */
 export function sourceKey(src) {
   if (!src.batCharging) return '';

@@ -138,3 +138,9 @@ test('0.4: Alarmanlage mit eigenem Namen, Bedienung ist Standard', () => {
   assert.equal(c.alarm_controls, true);
   assert.equal(normalizeConfig({ alarm_controls: false }).alarm_controls, false);
 });
+
+test('0.5: Zweite Solarquelle mit eigenem Namen', () => {
+  const c = normalizeConfig({ entities: { solar: 'sensor.roof', solar2: 'sensor.bag' }, names: { solar: 'Dach', solar2: 'Solartasche' } });
+  assert.deepEqual(c.entities, { solar: 'sensor.roof', solar2: 'sensor.bag' });
+  assert.deepEqual(c.names, { solar: 'Dach', solar2: 'Solartasche' });
+});

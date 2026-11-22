@@ -94,3 +94,14 @@ test('Editor 0.4: Alarmanlage und abgeschaltete Bedienung überstehen das Formul
   assert.equal(back.alarm_controls, false);
   assert.equal('alarm_controls' in unflattenConfig(flattenConfig(cfg), cfg), false); // Standard wird nicht gespeichert
 });
+
+test('Editor 0.5: zweite Solarquelle und ihr Name überstehen das Formular', () => {
+  const c2 = { ...cfg, entities: { ...cfg.entities, solar2: 'sensor.bag' }, names: { solar2: 'Solartasche' } };
+  const flat = flattenConfig(c2);
+  assert.equal(flat.solar2, 'sensor.bag');
+  assert.equal(flat.name_solar2, 'Solartasche');
+  const back = unflattenConfig(flat, c2);
+  assert.equal(back.entities.solar2, 'sensor.bag');
+  assert.deepEqual(back.names, { solar2: 'Solartasche' });
+  assert.equal('solar2' in unflattenConfig({ ...flat, solar2: '' }, c2).entities, false);
+});

@@ -3,7 +3,7 @@ import { V, GROUPS, DIMS } from './vehicles.js';
 
 /** Konfigurationsname der Entität und interner Schlüssel. gas_availability und gas2_availability werden gesondert behandelt. */
 export const ENTITY_KEYS = {
-  battery: 'battery', battery_power: 'power', solar: 'solar', charger: 'charger', charger_power: 'chargerPower',
+  battery: 'battery', battery_power: 'power', solar: 'solar', solar2: 'solar2', charger: 'charger', charger_power: 'chargerPower',
   fresh: 'fresh', grey: 'grey', gas: 'gas', gas2: 'gas2', temp_inside: 'tempIn', humidity_inside: 'humIn', temp_outside: 'tempOut',
   temp_fridge: 'tempFridge', temp_freezer: 'tempFreezer',
   pump: 'pump', light_inside: 'lightIn', light_outside: 'lightOut', pitch: 'pitch', roll: 'roll', alarm: 'alarm',
@@ -12,7 +12,7 @@ export const CFG_OF = Object.fromEntries(Object.entries(ENTITY_KEYS).map(([c, k]
 export const BOOL_KEYS = new Set(['charger', 'pump', 'lightIn', 'lightOut']);
 export const VEHICLES = ['caravan', 'motorhome', 'van'];
 /** Kacheln und Schalter, deren Beschriftung man unter names: selbst setzen kann (Konfigurationsnamen). */
-export const NAME_KEYS = ['battery', 'solar', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
+export const NAME_KEYS = ['battery', 'solar', 'solar2', 'charger', 'fresh', 'grey', 'gas', 'gas2', 'temp_inside', 'humidity_inside', 'temp_outside',
   'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'alarm'];
 /** Höchstzahl frei belegbarer Schalter (switches:). */
 export const MAX_SWITCHES = 6;

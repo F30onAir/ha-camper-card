@@ -2,7 +2,7 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, TYPE_NAME } from './vehicles.js';
 import { DEG, calcLeveling, round5, nearestStep, toDegrees, correctTilt } from './leveling.js';
-import { chargeSources, batteryHours } from './sources.js';
+import { chargeSources, batteryHours, solarTotal, toW } from './sources.js';
 import { AL_MODES, alarmModes, alarmKind, alarmNeedsCode, openSensors, isAlarmo, alarmRemaining, forceMode, alarmCall } from './alarm.js';
 import { normalizeConfig, ENTITY_KEYS, CFG_OF, BOOL_KEYS } from './config.js';
 
@@ -27,11 +27,14 @@ const miniR = () => clamp(-C.anim.r * EX, -14, 14);
 const isOff = (s) => !s || s.state === 'unavailable' || s.state === 'unknown';
 /* Beschriftung einer Kachel oder eines Schalters: eigener Name, sonst Standardtext. Bei zwei Gasflaschen „Gas 1“ und „Gas 2“. */
 const twoGas = () => !!(C.cfg.entities.gas && C.cfg.entities.gas2);
+const twoSolar = () => !!(C.cfg.entities.solar && C.cfg.entities.solar2);
 function nameOf(k, def) {
   const own = C.cfg.names && C.cfg.names[k];
   if (own) return esc(own);
   if (k === 'gas2') return `${t('gas')} 2`;
   if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
+  if (k === 'solar2') return `${t('solar')} 2`;
+  if (k === 'solar' && twoSolar()) return `${t('solar')} 1`;
   return def !== undefined ? def : t(k);
 }
 /* Kurzname im Tank der Seitenansicht: eigener Name nur, wenn er kurz genug ist. */
@@ -223,19 +226,28 @@ function batEl(b, p, state, charging) {
     ${rr(bx, by, bw, bh, 5, 'fill="url(#gBat)" stroke="var(--frame)" stroke-width="1"')}${rr(bx + 5, by + 3, bw - 10, 2, 1, 'fill="#fff" opacity=".18"')}
     ${rr(wx, wy, ww, wh, 3, 'fill="var(--tank)"')}${fill}${bolt}${lbl}`;
 }
-function solarEl(d, state, w) {
-  const s = d.solar, x = s.x, y = s.y, wd = s.w, on = state === 'ok' && w > 5, dx = 14, hg = 12;
+function solarEl(d, state, w, unit) {
+  const s = d.solar, x = s.x, y = s.y, wd = s.w, on = state === 'ok' && toW(w, unit) > 5, dx = 14, hg = 12;
   let cells = ''; for (let i = 1; i < 6; i++) { const px = x + wd * i / 6; cells += `<line x1="${px}" y1="${y - 2}" x2="${px - dx}" y2="${y - 2 - hg}"/>`; }
   const rot = s.rot ? `transform="rotate(${s.rot} ${x} ${y})"` : '';
-  const lbl = state === 'off' ? t('offline') : `${nf(w)} ${esc(unitOf('solar', 'W'))}`;
+  const lbl = state === 'off' ? t('offline') : `${nf(w)} ${esc(unit)}`;
   return `<g ${rot}><path d="M${x + 6} ${y} L${x + 6} ${y - 3} M${x + wd - 8} ${y} L${x + wd - 8} ${y - 3}" stroke="var(--metal)" stroke-width="3"/>
     <path d="M${x} ${y - 2} L${x + wd} ${y - 2} L${x + wd - dx} ${y - 2 - hg} L${x - dx} ${y - 2 - hg} Z" fill="${state === 'off' ? 'var(--cut-line)' : 'url(#gSolar)'}" stroke="var(--rim-2)" stroke-width="1.6" stroke-linejoin="round"/>
     <g stroke="rgba(255,255,255,.28)" stroke-width=".9">${cells}<line x1="${x - dx / 2}" y1="${y - 2 - hg / 2}" x2="${x + wd - dx / 2}" y2="${y - 2 - hg / 2}"/></g>
     ${on ? `<path d="M${x + wd * 0.16} ${y - 2} L${x + wd * 0.3} ${y - 2} L${x + wd * 0.3 - dx} ${y - 2 - hg} L${x + wd * 0.16 - dx} ${y - 2 - hg} Z" fill="#fff" opacity=".2"/>` : ''}
     <text class="scene-val" x="${x + wd / 2 - dx / 2}" y="${y - 2 - hg - 9}">${lbl}</text></g>`;
 }
+/* Solar: eine Quelle wie bisher, zwei Quellen (z. B. Dach und Solartasche) als Summe in W.
+   ks: zugewiesene Quellen, w: Summe in W, show/unit: Wert und Einheit für die Anzeige. */
+function solarSum() {
+  const ks = ['solar', 'solar2'].filter((k) => st(k) !== 'none');
+  const r = solarTotal(ks.map((k) => ({ st: st(k), v: val(k), unit: unitOf(k, 'W') })));
+  const one = ks.length === 1 && r.st === 'ok';
+  return { ...r, ks, show: one ? val(ks[0]) : r.w, unit: one ? unitOf(ks[0], 'W') : 'W' };
+}
 function sources() {
-  return chargeSources({ power: st('power'), solar: st('solar'), charger: st('charger'), chargerPower: st('chargerPower') }, C.v, C.cfg.charger_min_power);
+  return chargeSources({ power: st('power'), solar: solarSum().st, charger: st('charger'), chargerPower: st('chargerPower') },
+    { ...C.v, solar: solarSum().w }, C.cfg.charger_min_power);
 }
 function srcText(src) {
   if (!src.batCharging) return '';
@@ -259,7 +271,7 @@ function inletEl(d, active) {
     <circle cx="${x}" cy="${y}" r="4.5" fill="${active ? 'var(--c-grid)' : 'var(--metal)'}"/>`;
 }
 function vehicleEl(d) {
-  const fresh = st('fresh'), grey = st('grey'), bat = st('battery'), sol = st('solar');
+  const fresh = st('fresh'), grey = st('grey'), bat = st('battery'), SO = solarSum(), sol = SO.st;
   const liOn = st('lightIn') === 'ok' && val('lightIn'), loOn = st('lightOut') === 'ok' && val('lightOut');
   const W = d.wheel, cy = 286 - W.r, src = sources();
   let s = `<ellipse cx="${(d.ext[0] + d.ext[1]) / 2}" cy="287" rx="${(d.ext[1] - d.ext[0]) / 2 + 8}" ry="6" fill="#000" opacity=".25" filter="url(#fSoft)"/>`;
@@ -317,7 +329,7 @@ function vehicleEl(d) {
   bottles.forEach((k, j) => { const g = st(k); s += gasEl(j + 1, gbox[j], g === 'ok' ? pct(k) : 0, g, g === 'ok' && val(k) <= 15); });
   if (src.charger !== 'none') s += inletEl(d, src.chargerActive);
   if (bat !== 'none') s += batEl(d.bat, bat === 'ok' ? pct('battery') : 0, bat, src.batCharging);
-  if (sol !== 'none') s += solarEl(d, sol, sol === 'ok' ? val('solar') : 0);
+  if (sol !== 'none') s += solarEl(d, sol, sol === 'ok' ? SO.show : 0, SO.unit);
   if (bat !== 'none' && src.batCharging) {
     if (src.solarActive) s += `<path class="flow" data-flow="solar" d="${d.flow}"/>`;
     if (src.chargerActive) s += `<path class="flow c" data-flow="charger" d="${d.cflow}"/>`;
@@ -393,9 +405,17 @@ function tilesHTML() {
     const sub = [runTxt(), sTxt].filter(Boolean).join(' · ');
     out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
   } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
-  const so = st('solar');
-  if (so === 'off') out.push(offTile('solar', 'sun', nameOf('solar')));
-  else if (so === 'ok') out.push(tile('solar', 'sun', 'var(--c-sun)', nameOf('solar'), nf(val('solar')), unitOf('solar', 'W')));
+  // Solar: bei zwei Quellen eine Kachel mit der Summe und beiden Werten darunter.
+  const SO = solarSum();
+  if (SO.ks.length === 2) {
+    const part = (k) => `<span class="nw">${nameOf(k)} ${st(k) === 'ok' ? `${nf(toW(val(k), unitOf(k, 'W')))}${NB}W` : t('offline')}</span>`;
+    if (SO.st === 'off') out.push(offTile('solar', 'sun', t('solar')));
+    else out.push(tile('solar', 'sun', 'var(--c-sun)', t('solar'), nf(SO.w), 'W', '', SO.ks.map(part).join(' · ')));
+  } else if (SO.ks.length === 1) {
+    const k = SO.ks[0];
+    if (SO.st === 'off') out.push(offTile(k, 'sun', nameOf(k)));
+    else out.push(tile(k, 'sun', 'var(--c-sun)', nameOf(k), nf(val(k)), unitOf(k, 'W')));
+  }
   if (src.charger === 'off') out.push(offTile('charger', 'plug', nameOf('charger')));
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
@@ -692,6 +712,7 @@ svg:not([data-small]) .only-small{display:none}
 .t-v small{font-size:12px;font-weight:400;color:var(--secondary-text-color);margin-left:2px}
 .t-s{grid-column:2;font-size:11.5px;color:var(--secondary-text-color);overflow:hidden;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .t-s.warn{color:var(--c-warn)}
+.nw{white-space:nowrap}
 .t-b{grid-column:1/-1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--secondary-text-color) 18%,transparent);overflow:hidden;margin-top:7px}
 .t-b i{display:block;height:100%;border-radius:2px;background:var(--c);transition:width .3s}
 .tile.off .t-i{color:var(--secondary-text-color);background:color-mix(in srgb,var(--secondary-text-color) 14%,transparent)}

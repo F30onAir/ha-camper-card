@@ -24,7 +24,7 @@ export const STRINGS = {
     // Editor
     ed_name: 'Name', ed_vehicle: 'Fahrzeugtyp', ed_outline: 'Umriss', ed_offline: 'Zugewiesen, aber offline', ed_language: 'Sprache',
     ed_offline_grey: 'Grau mit „offline“ anzeigen', ed_offline_hide: 'Ausblenden', ed_lang_auto: 'Wie Home Assistant',
-    ed_battery: 'Batterie: Ladestand', ed_battery_power: 'Batterie: Leistung (BMS)', ed_solar: 'Solarleistung', ed_charger: 'Ladegerät: Schalter',
+    ed_battery: 'Batterie: Ladestand', ed_battery_power: 'Batterie: Leistung (BMS)', ed_solar: 'Solarleistung', ed_solar2: 'Solarleistung: zweite Quelle', ed_charger: 'Ladegerät: Schalter',
     ed_charger_power: 'Ladegerät: Leistung (Zwischenstecker)', ed_charger_min_power: 'Ladegerät lädt ab (W)', ed_charger_toggle: 'Ladegerät in der Karte schaltbar',
     ed_fresh: 'Frischwasser', ed_grey: 'Grauwasser', ed_gas: 'Gas', ed_gas_availability: 'Gas: Verfügbarkeit prüfen über',
     ed_gas2: 'Gas: zweite Flasche', ed_gas2_availability: 'Gas 2: Verfügbarkeit prüfen über',
@@ -55,6 +55,7 @@ export const STRINGS = {
     alFailed: 'Nicht scharf geschaltet', alCause: 'ausgelöst durch {}', alOpen: 'offen', alUnav: 'nicht erreichbar', alForce: 'Trotzdem scharf', alErr: 'Hat nicht geklappt',
     ed_g_alarm: 'Alarmanlage', ed_alarm: 'Alarmanlage', ed_alarm_controls: 'Bedienung auf der Karte',
     ed_alarm_help: 'Eine alarm_control_panel-Entität, zum Beispiel von Alarmo. Unscharf schalten ohne Code geht nur durch Gedrückthalten. Den Code speichert die Karte nicht.',
+    ed_solar2_help: 'Zum Beispiel ein zweiter Laderegler für eine Solartasche. Die Kachel zeigt dann die Summe und beide Werte, die Summe zählt für die Ladequelle.',
   },
   en: {
     overview: 'Overview', level: 'Levelling', battery: 'Battery', power: 'Power', solar: 'Solar', fresh: 'Fresh water', grey: 'Grey water', gas: 'Gas',
@@ -78,7 +79,7 @@ export const STRINGS = {
     runLeft: 'lasts approx. {}', runFull: 'full in approx. {}', uMin: 'min', uH: 'h', uDays: 'days', over30: 'over 30 days',
     ed_name: 'Name', ed_vehicle: 'Vehicle type', ed_outline: 'Outline', ed_offline: 'Assigned but offline', ed_language: 'Language',
     ed_offline_grey: 'Show grey with “offline”', ed_offline_hide: 'Hide', ed_lang_auto: 'Like Home Assistant',
-    ed_battery: 'Battery: state of charge', ed_battery_power: 'Battery: power (BMS)', ed_solar: 'Solar power', ed_charger: 'Charger: switch',
+    ed_battery: 'Battery: state of charge', ed_battery_power: 'Battery: power (BMS)', ed_solar: 'Solar power', ed_solar2: 'Solar power: second source', ed_charger: 'Charger: switch',
     ed_charger_power: 'Charger: power (smart plug)', ed_charger_min_power: 'Charger counts as charging from (W)', ed_charger_toggle: 'Charger can be switched in the card',
     ed_fresh: 'Fresh water', ed_grey: 'Grey water', ed_gas: 'Gas', ed_gas_availability: 'Gas: check availability via',
     ed_gas2: 'Gas: second bottle', ed_gas2_availability: 'Gas 2: check availability via',
@@ -109,6 +110,7 @@ export const STRINGS = {
     alFailed: 'Not armed', alCause: 'triggered by {}', alOpen: 'open', alUnav: 'unavailable', alForce: 'Arm anyway', alErr: 'Did not work',
     ed_g_alarm: 'Alarm system', ed_alarm: 'Alarm system', ed_alarm_controls: 'Controls on the card',
     ed_alarm_help: 'An alarm_control_panel entity, for example from Alarmo. Disarming without a code needs press and hold. The card never stores the code.',
+    ed_solar2_help: 'For example a second charge controller for a solar bag. The tile then shows the total and both values, and the total counts for the charge source.',
   },
 };
 

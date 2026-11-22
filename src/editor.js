@@ -4,7 +4,7 @@ import { V, GROUPS, DIMS, TYPE_NAME } from './vehicles.js';
 import { toDegrees, correctTilt } from './leveling.js';
 import { normalizeConfig, NAME_KEYS, ENTITY_KEYS, MAX_SWITCHES } from './config.js';
 
-const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
+const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'solar2', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
   'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll', 'alarm'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
 const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
@@ -133,7 +133,7 @@ export class CamperCardEditor extends EditorBase {
       const c = this._norm();
       return L(c.vehicle === 'caravan' ? (V[c.outline].axles === 2 ? 'ed_base_tandem' : 'ed_base_caravan') : 'ed_base_wheels');
     }
-    if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : L(ENTITY_KEYS[k]); }
+    if (s.name.startsWith('name_')) { const k = s.name.slice(5); return k === 'gas2' ? `${L('gas')} 2` : k === 'solar2' ? `${L('solar')} 2` : L(ENTITY_KEYS[k]); }
     const m = /^sw(\d)(?:_(name|icon))?$/.exec(s.name);
     if (m) return `${L('ed_sw')} ${m[1]}${m[2] ? `: ${L('ed_sw_' + m[2])}` : ''}`;
     return s.title || L('ed_' + s.name);
@@ -149,6 +149,7 @@ export class CamperCardEditor extends EditorBase {
     if (s.name === 'frost_warning') return L('ed_frost_help');
     if (s.name === 'sw1') return L('ed_sw_help');
     if (s.name === 'alarm') return L('ed_alarm_help');
+    if (s.name === 'solar2') return L('ed_solar2_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -166,7 +167,7 @@ export class CamperCardEditor extends EditorBase {
         { name: 'language', selector: sel([{ value: 'auto', label: L('ed_lang_auto') }, { value: 'de', label: 'Deutsch' }, { value: 'en', label: 'English' }]) },
       ], true),
       g('g_energy', [
-        { name: 'battery', selector: NUMERIC }, { name: 'battery_power', selector: NUMERIC }, { name: 'solar', selector: NUMERIC },
+        { name: 'battery', selector: NUMERIC }, { name: 'battery_power', selector: NUMERIC }, { name: 'solar', selector: NUMERIC }, { name: 'solar2', selector: NUMERIC },
         { name: 'charger', selector: { entity: { domain: ['switch', 'input_boolean'] } } }, { name: 'charger_power', selector: NUMERIC },
         { name: 'charger_min_power', selector: num(0, 500, 1, 'W') }, { name: 'charger_toggle', selector: { boolean: {} } },
         { name: 'battery_capacity', selector: num(0, 2000, 1, 'Ah') }, { name: 'battery_voltage', selector: num(6, 60, 0.1, 'V') },
