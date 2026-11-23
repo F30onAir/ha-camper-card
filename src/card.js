@@ -2,7 +2,7 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, TYPE_NAME } from './vehicles.js';
 import { DEG, calcLeveling, round5, nearestStep, toDegrees, correctTilt } from './leveling.js';
-import { chargeSources, batteryHours, solarTotal, toW, inW } from './sources.js';
+import { chargeSources, batteryHours, solarTotal, toW, inW, powerW } from './sources.js';
 import { AL_MODES, alarmModes, alarmKind, alarmNeedsCode, openSensors, isAlarmo, alarmRemaining, forceMode, alarmCall } from './alarm.js';
 import { normalizeConfig, ENTITY_KEYS, CFG_OF, BOOL_KEYS } from './config.js';
 
@@ -31,9 +31,9 @@ const twoSolar = () => !!(C.cfg.entities.solar && C.cfg.entities.solar2);
 function nameOf(k, def) {
   const own = C.cfg.names && C.cfg.names[k];
   if (own) return esc(own);
-  if (k === 'gas2') return `${t('gas')} 2`;
+  if (k === 'gas2') return twoGas() ? `${t('gas')} 2` : t('gas');
   if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
-  if (k === 'solar2') return `${t('solar')} 2`;
+  if (k === 'solar2') return twoSolar() ? `${t('solar')} 2` : t('solar');
   if (k === 'solar' && twoSolar()) return `${t('solar')} 1`;
   return def !== undefined ? def : t(k);
 }
@@ -245,9 +245,11 @@ function solarSum() {
   const one = ks.length === 1 && r.st === 'ok';
   return { ...r, ks, show: one ? val(ks[0]) : r.w, unit: one ? unitOf(ks[0], 'W') : 'W' };
 }
+/* Batterieleistung in W für Schwellen und Ladeerkennung. Die Anzeige bleibt in der Einheit des Sensors (etwa A). */
+const batW = () => powerW(val('power'), unitOf('power', 'W'), C.cfg.battery_voltage);
 function sources() {
   return chargeSources({ power: st('power'), solar: solarSum().st, charger: st('charger'), chargerPower: st('chargerPower') },
-    { ...C.v, solar: solarSum().w }, C.cfg.charger_min_power);
+    { ...C.v, power: batW(), solar: solarSum().w }, C.cfg.charger_min_power);
 }
 function srcText(src) {
   if (!src.batCharging) return '';
@@ -394,16 +396,16 @@ function tile(k, icon, color, label, v, unit, bar, sub, subWarn) {
   return `<div class="tile" style="--c:${color}" data-tile="${k}"${miOf(k)}><span class="t-i">${ic(icon, 19)}</span><span class="t-l">${label}</span><span class="t-v">${v}${unit ? `<small>${esc(unit)}</small>` : ''}</span>${sub ? `<span class="t-s${subWarn ? ' warn' : ''}" data-sub="${k}">${sub}</span>` : ''}${bar || ''}</div>`;
 }
 const offTile = (k, icon, label) => `<div class="tile off" data-tile="${k}"${miOf(k)}><span class="t-i">${ic(icon, 19)}</span><span class="t-l">${label}</span><span class="t-v">${t('offline')}</span></div>`;
-const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v));
+const signed = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d);
 function tilesHTML() {
   const out = [];
   const b = st('battery'), p = st('power'), src = sources(), sTxt = srcText(src);
   if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', nameOf('battery')));
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
-    const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
+    const pu = unitOf('power', 'W'), unit = pw === null ? '%' : `% · ${signed(pw, /A/.test(pu) && Math.abs(pw) < 100 ? 1 : 0)} ${pu}`, w = pw === null ? 0 : batW();
     const sub = [runTxt(), sTxt].filter(Boolean).join(' · ');
-    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${w > 5 ? t('charging') : w < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
   } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   // Solar: bei zwei Quellen eine Kachel mit der Summe und beiden Werten darunter.
   const SO = solarSum();
@@ -518,12 +520,12 @@ function alarmBanner() {
   const by = openSensors(C.al.a).length ? t('alCause').replace('{}', sensTxt(C.al.a)) : '';
   return `<div class="lv-st" style="--pc:var(--c-bat-low)">${ic('shieldAl', 22)}<div>${t('alS_triggered')}${by ? `<small>${by}</small>` : ''}</div></div>`;
 }
-function overviewHTML(T) {
+function overviewHTML(T, canSwitch) {
   const res = T.state === 'ok' ? calcNow(T) : null;
   const top = T.state === 'ok' ? `<div class="hero-top"><div class="ht-l">
       ${T.hasR ? `<div class="ht-v">${rearSVG()}<div><b>${sgn(T.roll)}°</b><small>${t('side')}</small></div></div>` : ''}
       ${T.hasP ? `<div class="ht-v"><div><b>${sgn(T.pitch)}°</b><small>${t('long')}</small></div></div>` : ''}
-    </div><button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button></div>`
+    </div>${canSwitch ? `<button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button>` : `<span class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'};cursor:default">${res.level ? t('pillOk') : t('pillNo')}</span>`}</div>`
     : T.state === 'off' ? `<div class="hero-top"><div class="ht-l"></div><span class="pill" style="--pc:var(--secondary-text-color);cursor:default">${t('tiltOff')}</span></div>` : '';
   const tiles = tilesHTML(), acts = actsHTML(), al = alarmHTML();
   const note = t('approx') + (T.state === 'ok' ? ` · ${t('exag')}` : '');
@@ -634,7 +636,8 @@ function stepsHTML(res) {
   return li.length ? `<ol class="steps">${li.join('')}</ol>` : '';
 }
 function levelHTML(T) {
-  if (T.state === 'off') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
+  if (T.state === 'none' && !C.cfg.entities.pitch && !C.cfg.entities.roll) return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('noTilt')}</div></div></div>`;
+  if (T.state !== 'ok') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
   const res = calcNow(T), ok = res.level, lv = C.cfg.leveling, tol = lv.tolerance, car = C.cfg.vehicle === 'caravan';
   const pTxt = Math.abs(T.pitch) <= tol ? t('flat') : T.pitch > 0 ? t(car ? 'noseHigh' : 'frontHigh') : t(car ? 'noseLow' : 'frontLow');
   const rTxt = Math.abs(T.roll) <= tol ? t('flat') : T.roll > 0 ? t('rightHigh') : t('leftHigh');
@@ -876,15 +879,17 @@ export class CamperCard extends HTMLElement {
     try {
       this.toggleAttribute('dark', !!(hass.themes && hass.themes.darkMode));
       const T = tilt();
-      if (T.state === 'none') this._ui.view = 'overview';
+      const only = cfg.show === 'all' ? null : cfg.show;
+      if (only) this._ui.view = only === 'leveling' ? 'level' : 'overview';
+      else if (T.state === 'none') this._ui.view = 'overview';
       this._target = { p: T.pitch, r: T.roll };
       if (this._first) { this._anim.p = T.pitch; this._anim.r = T.roll; this._first = false; }
       const ae = this.shadowRoot.activeElement, fid = ae && ae.dataset ? ae.dataset.fid : null;
       const name = cfg.name || TYPE_NAME[cfg.vehicle][C.lang];
       const v = this._ui.view;
-      const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
+      const seg = !only && T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       const tpl = document.createElement('template');
-      tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
+      tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T, !only)}`;
       morph(this._root, tpl.content);
       if (code) { const n = this._root.querySelector('[data-code]'); if (n && !n.value) n.value = code; }
       // Nur falls das fokussierte Element doch ersetzt wurde. Ohne preventScroll springt die Seite zur Karte (Issue #4).

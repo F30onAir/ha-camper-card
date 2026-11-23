@@ -10,7 +10,7 @@ const STRINGS = {
     offline: 'offline', on: 'an', off: 'aus', charging: 'lädt', discharging: 'entlädt', idle: 'Ruhe', tankLow: 'Tank fast leer',
     shortFresh: 'Frisch', shortGrey: 'Grau', approx: 'Allgemeiner Umriss, Annäherung', exag: 'Neigung überhöht', side: 'seitlich', long: 'längs',
     levelOk: 'Steht waagerecht', notLevel: 'Noch nicht waagerecht', pillOk: 'Waagerecht', pillNo: 'Nicht waagerecht',
-    tiltOff: 'Neigungssensor offline', tiltOffSub: 'Ohne aktuelle Werte zeigt die Karte keine Keile an.',
+    tiltOff: 'Neigungssensor offline', noTilt: 'Kein Neigungssensor zugewiesen. Das geht im Karten-Editor unter „Ausrichten“.', tiltOffSub: 'Ohne aktuelle Werte zeigt die Karte keine Keile an.',
     noseHigh: 'Bug hoch', noseLow: 'Bug tief', frontHigh: 'vorn hoch', frontLow: 'vorn tief', rightHigh: 'rechts hoch', leftHigh: 'links hoch', flat: 'waagerecht',
     bubble: 'Wasserwaage', plan: 'Keilplan', front: 'vorn', left: 'links', right: 'rechts',
     wedgeL1: 'Keil unter das linke Rad', wedgeR1: 'Keil unter das rechte Rad', wedgeL2: 'Keile unter beide linken Räder', wedgeR2: 'Keile unter beide rechten Räder',
@@ -25,6 +25,9 @@ const STRINGS = {
     tempOut: 'Außen', tempFreezer: 'Gefrierfach', humIn: 'Luftfeuchte', humHigh: 'zu feucht', airOut: 'lüften', frost: 'Frostgefahr',
     runLeft: 'reicht ca. {}', runFull: 'voll in ca. {}', uMin: 'Min.', uH: 'Std.', uDays: 'Tage', over30: 'über 30 Tage',
     ed_name: 'Name', ed_vehicle: 'Fahrzeugtyp', ed_outline: 'Umriss', ed_offline: 'Zugewiesen, aber offline', ed_language: 'Sprache',
+    ed_order_title: 'Reihenfolge der Schalter', ed_order_hint: 'Mit den Pfeilen verschieben. In dieser Reihenfolge stehen sie auf der Karte.', ed_up: 'Nach oben', ed_down: 'Nach unten',
+    ed_show: 'Anzeige', ed_show_all: 'Übersicht und Ausrichten (umschaltbar)', ed_show_overview: 'Nur Übersicht', ed_show_leveling: 'Nur Ausrichten',
+    ed_show_help: 'Für zwei getrennte Karten: eine Karte mit „Nur Übersicht“ und eine mit „Nur Ausrichten“ anlegen.',
     ed_offline_grey: 'Grau mit „offline“ anzeigen', ed_offline_hide: 'Ausblenden', ed_lang_auto: 'Wie Home Assistant',
     ed_battery: 'Batterie: Ladestand', ed_battery_power: 'Batterie: Leistung (BMS)', ed_solar: 'Solarleistung', ed_solar2: 'Solarleistung: zweite Quelle', ed_charger: 'Ladegerät: Schalter',
     ed_charger_power: 'Ladegerät: Leistung (Zwischenstecker)', ed_charger_min_power: 'Ladegerät lädt ab (W)', ed_charger_toggle: 'Ladegerät in der Karte schaltbar',
@@ -65,7 +68,7 @@ const STRINGS = {
     offline: 'offline', on: 'on', off: 'off', charging: 'charging', discharging: 'discharging', idle: 'idle', tankLow: 'Tank almost empty',
     shortFresh: 'Fresh', shortGrey: 'Grey', approx: 'Generic outline, approximation', exag: 'tilt exaggerated', side: 'side', long: 'length',
     levelOk: 'Vehicle is level', notLevel: 'Not level yet', pillOk: 'Level', pillNo: 'Not level',
-    tiltOff: 'Tilt sensor offline', tiltOffSub: 'Without current values the card shows no chocks.',
+    tiltOff: 'Tilt sensor offline', noTilt: 'No tilt sensor assigned yet. You can do that in the card editor under “Levelling”.', tiltOffSub: 'Without current values the card shows no chocks.',
     noseHigh: 'nose high', noseLow: 'nose low', frontHigh: 'front high', frontLow: 'front low', rightHigh: 'right high', leftHigh: 'left high', flat: 'level',
     bubble: 'Spirit level', plan: 'Chock plan', front: 'front', left: 'left', right: 'right',
     wedgeL1: 'Chock under the left wheel', wedgeR1: 'Chock under the right wheel', wedgeL2: 'Chocks under both left wheels', wedgeR2: 'Chocks under both right wheels',
@@ -80,6 +83,9 @@ const STRINGS = {
     tempOut: 'Outside', tempFreezer: 'Freezer', humIn: 'Humidity', humHigh: 'too humid', airOut: 'ventilate', frost: 'Frost risk',
     runLeft: 'lasts approx. {}', runFull: 'full in approx. {}', uMin: 'min', uH: 'h', uDays: 'days', over30: 'over 30 days',
     ed_name: 'Name', ed_vehicle: 'Vehicle type', ed_outline: 'Outline', ed_offline: 'Assigned but offline', ed_language: 'Language',
+    ed_order_title: 'Order of your switches', ed_order_hint: 'Move them with the arrows. The card shows them in this order.', ed_up: 'Move up', ed_down: 'Move down',
+    ed_show: 'Show', ed_show_all: 'Overview and levelling (switchable)', ed_show_overview: 'Overview only', ed_show_leveling: 'Levelling only',
+    ed_show_help: 'For two separate cards, add one card with “Overview only” and one with “Levelling only”.',
     ed_offline_grey: 'Show grey with “offline”', ed_offline_hide: 'Hide', ed_lang_auto: 'Like Home Assistant',
     ed_battery: 'Battery: state of charge', ed_battery_power: 'Battery: power (BMS)', ed_solar: 'Solar power', ed_solar2: 'Solar power: second source', ed_charger: 'Charger: switch',
     ed_charger_power: 'Charger: power (smart plug)', ed_charger_min_power: 'Charger counts as charging from (W)', ed_charger_toggle: 'Charger can be switched in the card',
@@ -294,14 +300,17 @@ function chargeSources(st, v, chargerMin) {
 
 function batteryHours(soc, power, unit, capAh, volt) {
   if (!(capAh > 0) || !(volt > 0) || !Number.isFinite(soc) || !Number.isFinite(power)) return null;
-  const u = String(unit || 'W').trim();
-  const w = u === 'kW' ? power * 1000 : u === 'A' ? power * volt : u === 'mA' ? power * volt / 1000 : power;
+  const w = powerW(power, unit, volt);
   if (Math.abs(w) <= 5) return null;
   const s = Math.min(100, Math.max(0, soc)), wh = capAh * volt;
   if ((w > 0 && s >= 99) || (w < 0 && s <= 0)) return null;
   return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
 }
 
+function powerW(v, unit, volt) {
+  const u = String(unit || 'W').trim();
+  return u === 'kW' ? v * 1000 : u === 'A' ? v * volt : u === 'mA' ? v * volt / 1000 : v;
+}
 const toW = (v, unit) => (String(unit || '').trim() === 'kW' ? v * 1000 : v);
 const W_KEYS = ['power', 'solar', 'solar2', 'chargerPower'];
 const inW = (k, v, unit) => (W_KEYS.includes(k) && String(unit || '').trim() === 'kW' ? [v * 1000, 'W'] : [v, unit]);
@@ -419,6 +428,7 @@ function normalizeConfig(raw) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : null,
     vehicle, outline,
     offline: raw.offline === 'hide' ? 'hide' : 'grey',
+    show: raw.show === 'overview' || raw.show === 'leveling' ? raw.show : 'all',
     language: raw.language === 'de' || raw.language === 'en' ? raw.language : 'auto',
     pump_name: pumpName,
     names,
@@ -472,9 +482,9 @@ const twoSolar = () => !!(C.cfg.entities.solar && C.cfg.entities.solar2);
 function nameOf(k, def) {
   const own = C.cfg.names && C.cfg.names[k];
   if (own) return esc(own);
-  if (k === 'gas2') return `${t('gas')} 2`;
+  if (k === 'gas2') return twoGas() ? `${t('gas')} 2` : t('gas');
   if (k === 'gas' && twoGas()) return `${t('gas')} 1`;
-  if (k === 'solar2') return `${t('solar')} 2`;
+  if (k === 'solar2') return twoSolar() ? `${t('solar')} 2` : t('solar');
   if (k === 'solar' && twoSolar()) return `${t('solar')} 1`;
   return def !== undefined ? def : t(k);
 }
@@ -673,9 +683,10 @@ function solarSum() {
   const one = ks.length === 1 && r.st === 'ok';
   return { ...r, ks, show: one ? val(ks[0]) : r.w, unit: one ? unitOf(ks[0], 'W') : 'W' };
 }
+const batW = () => powerW(val('power'), unitOf('power', 'W'), C.cfg.battery_voltage);
 function sources() {
   return chargeSources({ power: st('power'), solar: solarSum().st, charger: st('charger'), chargerPower: st('chargerPower') },
-    { ...C.v, solar: solarSum().w }, C.cfg.charger_min_power);
+    { ...C.v, power: batW(), solar: solarSum().w }, C.cfg.charger_min_power);
 }
 function srcText(src) {
   if (!src.batCharging) return '';
@@ -818,16 +829,16 @@ function tile(k, icon, color, label, v, unit, bar, sub, subWarn) {
   return `<div class="tile" style="--c:${color}" data-tile="${k}"${miOf(k)}><span class="t-i">${ic(icon, 19)}</span><span class="t-l">${label}</span><span class="t-v">${v}${unit ? `<small>${esc(unit)}</small>` : ''}</span>${sub ? `<span class="t-s${subWarn ? ' warn' : ''}" data-sub="${k}">${sub}</span>` : ''}${bar || ''}</div>`;
 }
 const offTile = (k, icon, label) => `<div class="tile off" data-tile="${k}"${miOf(k)}><span class="t-i">${ic(icon, 19)}</span><span class="t-l">${label}</span><span class="t-v">${t('offline')}</span></div>`;
-const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v));
+const signed = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d);
 function tilesHTML() {
   const out = [];
   const b = st('battery'), p = st('power'), src = sources(), sTxt = srcText(src);
   if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', nameOf('battery')));
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
-    const unit = pw === null ? '%' : `% · ${signed(pw)} ${unitOf('power', 'W')}`;
+    const pu = unitOf('power', 'W'), unit = pw === null ? '%' : `% · ${signed(pw, /A/.test(pu) && Math.abs(pw) < 100 ? 1 : 0)} ${pu}`, w = pw === null ? 0 : batW();
     const sub = [runTxt(), sTxt].filter(Boolean).join(' · ');
-    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${pw > 5 ? t('charging') : pw < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
+    out.push(tile('battery', 'battery', batColor(val('battery')), nameOf('battery') + (pw === null ? '' : ` · ${w > 5 ? t('charging') : w < -5 ? t('discharging') : t('idle')}`), nf(val('battery')), unit, barOf(val('battery'), batColor(val('battery'))), sub, src.unknown));
   } else if (p === 'ok') out.push(tile('power', 'battery', 'var(--c-bat)', nameOf('battery', t('power')), signed(val('power')), unitOf('power', 'W'), '', sTxt, src.unknown));
   const SO = solarSum();
   if (SO.ks.length === 2) {
@@ -934,12 +945,12 @@ function alarmBanner() {
   const by = openSensors(C.al.a).length ? t('alCause').replace('{}', sensTxt(C.al.a)) : '';
   return `<div class="lv-st" style="--pc:var(--c-bat-low)">${ic('shieldAl', 22)}<div>${t('alS_triggered')}${by ? `<small>${by}</small>` : ''}</div></div>`;
 }
-function overviewHTML(T) {
+function overviewHTML(T, canSwitch) {
   const res = T.state === 'ok' ? calcNow(T) : null;
   const top = T.state === 'ok' ? `<div class="hero-top"><div class="ht-l">
       ${T.hasR ? `<div class="ht-v">${rearSVG()}<div><b>${sgn(T.roll)}°</b><small>${t('side')}</small></div></div>` : ''}
       ${T.hasP ? `<div class="ht-v"><div><b>${sgn(T.pitch)}°</b><small>${t('long')}</small></div></div>` : ''}
-    </div><button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button></div>`
+    </div>${canSwitch ? `<button class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'}" data-a="view" data-v="level" data-fid="pill">${res.level ? t('pillOk') : t('pillNo')}</button>` : `<span class="pill" style="--pc:${res.level ? 'var(--c-ok)' : 'var(--c-warn)'};cursor:default">${res.level ? t('pillOk') : t('pillNo')}</span>`}</div>`
     : T.state === 'off' ? `<div class="hero-top"><div class="ht-l"></div><span class="pill" style="--pc:var(--secondary-text-color);cursor:default">${t('tiltOff')}</span></div>` : '';
   const tiles = tilesHTML(), acts = actsHTML(), al = alarmHTML();
   const note = t('approx') + (T.state === 'ok' ? ` · ${t('exag')}` : '');
@@ -1049,7 +1060,8 @@ function stepsHTML(res) {
   return li.length ? `<ol class="steps">${li.join('')}</ol>` : '';
 }
 function levelHTML(T) {
-  if (T.state === 'off') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
+  if (T.state === 'none' && !C.cfg.entities.pitch && !C.cfg.entities.roll) return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('noTilt')}</div></div></div>`;
+  if (T.state !== 'ok') return `<div class="lv">${alarmBanner()}<div class="lv-st" style="--pc:var(--secondary-text-color)">${ic('warn', 22)}<div>${t('tiltOff')}<small>${t('tiltOffSub')}</small></div></div></div>`;
   const res = calcNow(T), ok = res.level, lv = C.cfg.leveling, tol = lv.tolerance, car = C.cfg.vehicle === 'caravan';
   const pTxt = Math.abs(T.pitch) <= tol ? t('flat') : T.pitch > 0 ? t(car ? 'noseHigh' : 'frontHigh') : t(car ? 'noseLow' : 'frontLow');
   const rTxt = Math.abs(T.roll) <= tol ? t('flat') : T.roll > 0 ? t('rightHigh') : t('leftHigh');
@@ -1283,15 +1295,17 @@ class CamperCard extends HTMLElement {
     try {
       this.toggleAttribute('dark', !!(hass.themes && hass.themes.darkMode));
       const T = tilt();
-      if (T.state === 'none') this._ui.view = 'overview';
+      const only = cfg.show === 'all' ? null : cfg.show;
+      if (only) this._ui.view = only === 'leveling' ? 'level' : 'overview';
+      else if (T.state === 'none') this._ui.view = 'overview';
       this._target = { p: T.pitch, r: T.roll };
       if (this._first) { this._anim.p = T.pitch; this._anim.r = T.roll; this._first = false; }
       const ae = this.shadowRoot.activeElement, fid = ae && ae.dataset ? ae.dataset.fid : null;
       const name = cfg.name || TYPE_NAME[cfg.vehicle][C.lang];
       const v = this._ui.view;
-      const seg = T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
+      const seg = !only && T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       const tpl = document.createElement('template');
-      tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T)}`;
+      tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T, !only)}`;
       morph(this._root, tpl.content);
       if (code) { const n = this._root.querySelector('[data-code]'); if (n && !n.value) n.value = code; }
       if (fid && !ae.isConnected) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
@@ -1404,7 +1418,7 @@ const CARD_VERSION = VERSION;
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'solar2', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
   'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll', 'alarm'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'show', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
   'frost_temp', 'humidity_max'];
 const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
 const NUMERIC = { entity: { domain: ['sensor', 'input_number', 'number'] } };
@@ -1456,6 +1470,14 @@ function unflattenConfig(data, prev) {
   return out;
 }
 
+function moveSwitch(cfg, i, d) {
+  const sw = normalizeConfig(cfg).switches.map((w) => ({ entity: w.entity, ...(w.name ? { name: w.name } : {}), ...(w.icon ? { icon: w.icon } : {}) }));
+  const j = i + d;
+  if (!sw[i] || !sw[j]) return cfg;
+  [sw[i], sw[j]] = [sw[j], sw[i]];
+  return { ...JSON.parse(JSON.stringify(cfg)), switches: sw };
+}
+
 const EditorBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 class CamperCardEditor extends EditorBase {
   constructor() {
@@ -1464,7 +1486,7 @@ class CamperCardEditor extends EditorBase {
     this._config = { type: 'custom:camper-card' };
     this._built = false;
   }
-  set hass(h) { this._hass = h; if (this._form) this._form.hass = h; this._updateZero(); }
+  set hass(h) { const first = !this._hass; this._hass = h; if (this._form) this._form.hass = h; this._updateZero(); if (first) this._updateOrder(); }
   get hass() { return this._hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config || {})); this._update(); }
   connectedCallback() { this._build(); }
@@ -1496,13 +1518,22 @@ class CamperCardEditor extends EditorBase {
       .zero button{font:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--secondary-background-color,transparent);color:var(--primary-text-color);cursor:pointer}
       .zero button.main{background:var(--primary-color);border-color:var(--primary-color);color:var(--text-primary-color,#fff)}
       .zero button:disabled{opacity:.5;cursor:default}
+      .ord{display:flex;align-items:center;gap:8px;margin-top:6px}
+      .ord span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+      .zero .ord button{padding:4px 12px}
       .warn{padding:12px;border-radius:8px;background:var(--warning-color,#ffa600);color:#000;font-size:13px}
-    </style><div id="form"></div><div class="zero" id="zero"></div>`;
+    </style><div id="form"></div><div class="zero" id="order" hidden></div><div class="zero" id="zero"></div>`;
     this.shadowRoot.getElementById('zero').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.a === 'zero') this._setZero(); else if (b.dataset.a === 'reset') this._resetZero();
     });
+    this.shadowRoot.getElementById('order').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      const next = moveSwitch(this._config, +b.dataset.i, b.dataset.a === 'up' ? -1 : 1);
+      if (next !== this._config) { this._config = next; this._fire(next); this._update(); }
+    });
     this._updateZero();
+    this._updateOrder();
     const ok = await this._ensureForm();
     const host = this.shadowRoot.getElementById('form');
     if (!ok) { host.innerHTML = `<div class="warn">${this._L('ed_no_form')}</div>`; return; }
@@ -1543,6 +1574,7 @@ class CamperCardEditor extends EditorBase {
     if (s.name === 'sw1') return L('ed_sw_help');
     if (s.name === 'alarm') return L('ed_alarm_help');
     if (s.name === 'solar2') return L('ed_solar2_help');
+    if (s.name === 'show') return L('ed_show_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -1556,6 +1588,7 @@ class CamperCardEditor extends EditorBase {
         { name: 'name', selector: { text: {} } },
         { name: 'vehicle', selector: sel(Object.keys(GROUPS).map((k) => ({ value: k, label: TYPE_NAME[k][lang] }))) },
         { name: 'outline', selector: sel(GROUPS[c.vehicle].map((k) => ({ value: k, label: V[k].name[lang] }))) },
+        { name: 'show', selector: sel(['all', 'overview', 'leveling'].map((v) => ({ value: v, label: L('ed_show_' + v) }))) },
         { name: 'offline', selector: sel([{ value: 'grey', label: L('ed_offline_grey') }, { value: 'hide', label: L('ed_offline_hide') }]) },
         { name: 'language', selector: sel([{ value: 'auto', label: L('ed_lang_auto') }, { value: 'de', label: 'Deutsch' }, { value: 'en', label: 'English' }]) },
       ], true),
@@ -1605,20 +1638,36 @@ class CamperCardEditor extends EditorBase {
       if (!data.vehicle) data.vehicle = this._norm().vehicle;
       if (!data.outline) data.outline = this._norm().outline;
       if (!data.offline) data.offline = 'grey';
+      if (!data.show) data.show = 'all';
       if (!data.language) data.language = 'auto';
       this._form.data = data;
       this._form.schema = this._schema();
     }
     this._updateZero();
+    this._updateOrder();
+  }
+  _updateOrder() {
+    const box = this.shadowRoot && this.shadowRoot.getElementById('order');
+    if (!box) return;
+    const L = this._L, sw = this._norm().switches, h = this._hass;
+    box.hidden = sw.length < 2;
+    if (box.hidden) { box.innerHTML = ''; return; }
+    box.innerHTML = `<h3>${L('ed_order_title')}</h3><p>${L('ed_order_hint')}</p>${sw.map((w, i) => `<div class="ord"><span data-nm="${i}"></span>
+      <button data-a="up" data-i="${i}" aria-label="${L('ed_up')}" title="${L('ed_up')}" ${i ? '' : 'disabled'}>↑</button>
+      <button data-a="down" data-i="${i}" aria-label="${L('ed_down')}" title="${L('ed_down')}" ${i < sw.length - 1 ? '' : 'disabled'}>↓</button></div>`).join('')}`;
+    box.querySelectorAll('[data-nm]').forEach((e) => {
+      const w = sw[+e.dataset.nm], s = h && h.states[w.entity];
+      e.textContent = `${+e.dataset.nm + 1}. ${w.name || (s && s.attributes && s.attributes.friendly_name) || w.entity}`;
+    });
   }
   _rawTilt() {
     const h = this._hass, e = (this._config && this._config.entities) || {};
-    if (!h || !e.pitch || !e.roll) return null;
-    const rd = (id) => { const s = h.states[id]; if (!s) return null; const n = parseFloat(s.state); return Number.isFinite(n) ? toDegrees(n, s.attributes && s.attributes.unit_of_measurement) : null; };
+    if (!h || (!e.pitch && !e.roll)) return null;
+    const rd = (id) => { const s = id && h.states[id]; if (!s) return null; const n = parseFloat(s.state); return Number.isFinite(n) ? toDegrees(n, s.attributes && s.attributes.unit_of_measurement) : null; };
     const p = rd(e.pitch), r = rd(e.roll);
-    if (p === null || r === null) return null;
+    if ((e.pitch && p === null) || (e.roll && r === null)) return null;
     const lv = this._norm().leveling;
-    return correctTilt({ pitch: p, roll: r }, { ...lv, offset_pitch: 0, offset_roll: 0 });
+    return correctTilt({ pitch: p || 0, roll: r || 0 }, { ...lv, offset_pitch: 0, offset_roll: 0 });
   }
   _updateZero() {
     const box = this.shadowRoot && this.shadowRoot.getElementById('zero');

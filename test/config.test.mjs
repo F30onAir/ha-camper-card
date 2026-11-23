@@ -163,3 +163,10 @@ test('0.5.1: Leere YAML-Werte (null) bekommen den Standard, nicht 0 (PR #12)', (
   assert.equal(normalizeConfig({ leveling: { max_wedge: 0 } }).leveling.max_wedge, 0);
   assert.equal(normalizeConfig({ battery_voltage: true }).battery_voltage, 12.8);
 });
+
+test('0.5.1: Anzeige nur Übersicht oder nur Ausrichten (Issue #17)', () => {
+  assert.equal(normalizeConfig({}).show, 'all');
+  assert.equal(normalizeConfig({ show: 'overview' }).show, 'overview');
+  assert.equal(normalizeConfig({ show: 'leveling' }).show, 'leveling');
+  assert.equal(normalizeConfig({ show: 'quatsch' }).show, 'all');
+});

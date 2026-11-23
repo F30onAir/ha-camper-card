@@ -115,3 +115,14 @@ test('0.5.1: Leere Batterie beim Entladen zeigt keine Restlaufzeit (PR #14)', ()
   assert.equal(batteryHours(0, 40, 'W', 100, 12.8).charging, true); // Laden ab 0 % geht weiter
   assert.ok(batteryHours(1, -40, 'W', 100, 12.8).hours > 0);
 });
+
+test('0.5.1: Batterieleistung in A zählt für die Ladeerkennung in W', async () => {
+  const { powerW } = await import('../src/sources.js');
+  near(powerW(3, 'A', 12.8), 38.4);
+  near(powerW(-500, 'mA', 12.8), -6.4);
+  assert.equal(powerW(0.2, 'kW', 12.8), 200);
+  assert.equal(powerW(40, 'W', 12.8), 40);
+  // 3 A Laden sind gut 38 W: das ist Laden, nicht Ruhe
+  const s = chargeSources({ power: 'ok', solar: 'ok', charger: 'none', chargerPower: 'none' }, { power: powerW(3, 'A', 12.8), solar: 60 }, 10);
+  assert.equal(sourceKey(s), 'solar');
+});

@@ -20,6 +20,7 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 - Charge source: solar, charger, both or unknown, derived from your sensors
 - Alarm system, for example Alarmo: state with a shield at the door, exit and entry delay, arm and disarm, open sensors, "arm anyway"
 - Levelling: spirit level from two tilt sensors, chock height per wheel, for caravans also the jockey wheel
+- Overview and levelling in one card with tabs, or as two separate cards (`show: overview` and `show: leveling`)
 - Sensors that are assigned but offline show "offline", unassigned parts are hidden
 - Visual editor, light and dark theme, phone and tablet
 
@@ -57,13 +58,15 @@ Number fields also take `input_number` and `number`, switch fields also `input_b
 
 **Humidity.** `humidity_inside` appears below the inside temperature, or as its own tile without one. From `humidity_max` (default 70 %) the card shows "too humid".
 
-**Your own switches.** Under `switches:` (in the editor: "More switches") you can add up to 6 entities, each with an optional `name` and `icon` (for example `mdi:fridge`). Without a name the card uses the name from Home Assistant.
+**Your own switches.** Under `switches:` (in the editor: "More switches") you can add up to 6 entities, each with an optional `name` and `icon` (for example `mdi:fridge`). Without a name the card uses the name from Home Assistant. In the editor, the box "Order of your switches" below the form moves them up and down with arrows, the card shows them in that order.
 
 **Alarm system.** Assign an `alarm_control_panel` entity as `alarm`, for example from [Alarmo](https://github.com/nielsfaber/alarmo). The card shows the state with a shield at the door, who switched it, the remaining exit or entry delay and a red notice when the alarm goes off. Tap the alarm header to open the Home Assistant dialog. The buttons arm in the modes your panel offers (with Alarmo: the modes enabled there) or disarm it. A code field appears only when the panel asks for a code for the next step, and the card never stores the code. Disarming without a code needs press and hold, so it cannot happen by accident. With Alarmo the card also names the open sensors when arming failed ("Not armed: Roof hatch open") and the sensor that set off the alarm, and offers "Arm anyway", which bypasses the open sensors (`alarmo.arm` with `force`). With `alarm_controls: false` the card only shows the state.
 
+**Overview or levelling only.** By default the card has two tabs, Overview and Levelling. With `show: overview` (editor: "Show" → "Overview only") it shows only the side view, tiles and switches, with `show: leveling` only the levelling view. For two separate cards, add the card twice with the same entities, once with each setting.
+
 **Two solar sources.** With `solar2` assigned, the solar tile shows the total and both values below it, for example "Solar 1 210 W · Solar 2 95 W". Name them under `names:` (`solar`, `solar2`), for example "Roof" and "Solar bag". The roof panel in the side view shows the total, and the total counts for the charge source. A source that is offline is shown as "offline" and left out of the total. kW readings are converted to W.
 
-**Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. If both are assigned and one of them is offline, the charger does not count. Power readings in kW (battery, solar, charger) are converted to W. The card shows solar, charger, both, or "unknown" if no source explains the charging.
+**Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. If both are assigned and one of them is offline, the charger does not count. Power readings in kW (battery, solar, charger) are converted to W, battery power in A counts via `battery_voltage`. The card shows solar, charger, both, or "unknown" if no source explains the charging.
 
 **Tested in a real caravan:** LiFePO4 battery with Bluetooth BMS via [BMS BLE](https://github.com/patman15/BMS_BLE-HA) (HACS), gas bottle via the built-in Mopeka integration, fresh water via an E-Waterlevel Bluetooth sensor read by an ESP32 with [esphome-ewaterlevel](https://github.com/Fabian-Schmidt/esphome-ewaterlevel), taps via a Zigbee switch. Not tested yet: a real tilt sensor (levelling was checked with simulated values).
 
@@ -123,7 +126,7 @@ If a direction is reversed or the axes are swapped, fix it in the card editor (i
 
 </details>
 
-*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen und zwei Solarquellen (z. B. Dach und Solartasche, die Kachel zeigt die Summe und beide Werte), jede Kachel lässt sich unter `names:` selbst benennen. Neu in 0.3: Temperatur außen und Gefrierfach, Luftfeuchte innen mit Hinweis „zu feucht“, Restlaufzeit der Batterie (mit `battery_capacity` in Ah), Frostwarnung für Tanks mit Wasser und bis zu sechs eigene Schalter unter `switches:`. Neu in 0.4: Alarmanlage unter `alarm`, zum Beispiel Alarmo, mit Schild an der Tür, Restzeit der Verzögerung, Scharf- und Unscharfschalten (Unscharf ohne Code nur durch Gedrückthalten, der Code wird nie gespeichert), offenen Sensoren und „Trotzdem scharf schalten“. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
+*Deutsch:* Die Karte ist nur die Anzeige und bringt keine eigene Integration mit. Sie liest Entitäten, die schon in Home Assistant sind, egal ob über Zigbee, Bluetooth, ESPHome, MQTT oder Victron. Tanks, Gas und Batterie in %, Leistungen in W, Neigung in Grad. Alles ist optional, fehlende Teile werden ausgeblendet. Bis zu zwei Gasflaschen und zwei Solarquellen (z. B. Dach und Solartasche, die Kachel zeigt die Summe und beide Werte), jede Kachel lässt sich unter `names:` selbst benennen. Neu in 0.3: Temperatur außen und Gefrierfach, Luftfeuchte innen mit Hinweis „zu feucht“, Restlaufzeit der Batterie (mit `battery_capacity` in Ah), Frostwarnung für Tanks mit Wasser und bis zu sechs eigene Schalter unter `switches:`. Neu in 0.4: Alarmanlage unter `alarm`, zum Beispiel Alarmo, mit Schild an der Tür, Restzeit der Verzögerung, Scharf- und Unscharfschalten (Unscharf ohne Code nur durch Gedrückthalten, der Code wird nie gespeichert), offenen Sensoren und „Trotzdem scharf schalten“. Neu in 0.5.1: nur Übersicht oder nur Ausrichten (`show`, damit auch als zwei getrennte Karten) und eigene Schalter im Editor per Pfeil sortieren. Getestet im Wohnwagen mit Bluetooth-BMS (BMS BLE), Mopeka-Gassensor, E-Waterlevel über ESPHome und Zigbee-Schalter.
 
 ## Screenshots
 
@@ -160,6 +163,7 @@ type: custom:camper-card
 name: Wohnwagen
 vehicle: caravan          # caravan | motorhome | van
 outline: caravan_round    # caravan_round, caravan_box, caravan_tandem, mh_semi, mh_alcove, mh_integrated, van_high, van_popup, van_ducato
+show: all                 # all (tabs) | overview | leveling
 offline: grey             # grey | hide (assigned but offline)
 battery_capacity: 100     # Ah, optional, shows the remaining time
 battery_voltage: 12.8     # V, nominal voltage, default 12.8

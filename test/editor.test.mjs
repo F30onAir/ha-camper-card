@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { flattenConfig, unflattenConfig } from '../src/editor.js';
+import { flattenConfig, unflattenConfig, moveSwitch } from '../src/editor.js';
 
 const cfg = {
   type: 'custom:camper-card', name: 'Wohnwagen', vehicle: 'caravan', outline: 'caravan_round',
@@ -122,4 +122,21 @@ test('Editor 0.5.1: Layout, Sichtbarkeit und fremde Optionen bleiben erhalten (P
   assert.equal(b2.names.pump, 'Tauchpumpe');
   assert.equal('frost_warning' in b2, false);
   assert.equal('alarm_controls' in b2, false);
+});
+
+test('Editor 0.5.1: Anzeige übersteht das Formular, Schalter lassen sich verschieben (Issues #17, #18)', () => {
+  const c = { ...cfg, show: 'leveling' };
+  assert.equal(flattenConfig(c).show, 'leveling');
+  assert.equal(unflattenConfig(flattenConfig(c), c).show, 'leveling');
+  const s = { ...cfg, switches: [{ entity: 'switch.a', name: 'A' }, 'switch.b', { entity: 'switch.c', icon: 'mdi:fridge' }] };
+  const up = moveSwitch(s, 1, -1);
+  assert.deepEqual(up.switches, [{ entity: 'switch.b' }, { entity: 'switch.a', name: 'A' }, { entity: 'switch.c', icon: 'mdi:fridge' }]);
+  assert.deepEqual(moveSwitch(up, 1, 1).switches.map((w) => w.entity), ['switch.b', 'switch.c', 'switch.a']);
+  assert.equal(moveSwitch(s, 0, -1), s); // ganz oben bleibt oben
+  assert.equal(moveSwitch(s, 2, 1), s);
+  assert.equal(s.switches.length, 3); // Original unverändert
+  assert.equal(s.switches[1], 'switch.b');
+  assert.equal(up.name, cfg.name); // Rest bleibt
+  // Neue Reihenfolge übersteht das Formular
+  assert.deepEqual(unflattenConfig(flattenConfig(up), up).switches.map((w) => w.entity), ['switch.b', 'switch.a', 'switch.c']);
 });

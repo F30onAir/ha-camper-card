@@ -16,6 +16,7 @@ test('Build: eine einzelne Datei mit beiden Elementen, ohne import/export', () =
   assert.doesNotMatch(out, /^\s*(import|export)\s/m);
   assert.ok(out.includes(JSON.stringify(pkg.version)), 'Version eingetragen');
   assert.ok(!out.includes('__VERSION__'), 'Platzhalter ersetzt');
-  assert.ok(Buffer.byteLength(out) < 128 * 1024, 'passt als eingebettete Ressource (unter 128 KB)');
+  // Schutz vor versehentlichem Aufblähen. Die frühere Grenze von 128 KB galt nur für die eingebettete Test-Ressource aus 0.1.0.
+  assert.ok(Buffer.byteLength(out) < 256 * 1024, 'bleibt unter 256 KB');
   assert.doesNotMatch(out, /https?:\/\/(?!www\.w3\.org)/, 'lädt nichts aus dem Internet');
 });

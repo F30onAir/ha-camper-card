@@ -64,6 +64,8 @@ export function normalizeConfig(raw) {
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : null,
     vehicle, outline,
     offline: raw.offline === 'hide' ? 'hide' : 'grey',
+    // Anzeige: beide Ansichten mit Umschalter, nur Übersicht oder nur Ausrichten (zwei getrennte Karten möglich).
+    show: raw.show === 'overview' || raw.show === 'leveling' ? raw.show : 'all',
     language: raw.language === 'de' || raw.language === 'en' ? raw.language : 'auto',
     pump_name: pumpName,
     names,

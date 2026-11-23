@@ -7,7 +7,7 @@ import { normalizeConfig, NAME_KEYS, ENTITY_KEYS, MAX_SWITCHES } from './config.
 const ENT_FIELDS = ['battery', 'battery_power', 'solar', 'solar2', 'charger', 'charger_power', 'fresh', 'grey', 'gas', 'gas_availability', 'gas2', 'gas2_availability',
   'temp_inside', 'humidity_inside', 'temp_outside', 'temp_fridge', 'temp_freezer', 'pump', 'light_inside', 'light_outside', 'pitch', 'roll', 'alarm'];
 const LV_FIELDS = ['track', 'base', 'max_wedge', 'steps', 'tolerance', 'invert_pitch', 'invert_roll', 'swap_axes', 'offset_pitch', 'offset_roll'];
-const TOP_FIELDS = ['name', 'vehicle', 'outline', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
+const TOP_FIELDS = ['name', 'vehicle', 'outline', 'show', 'offline', 'language', 'charger_min_power', 'charger_toggle', 'battery_capacity', 'battery_voltage',
   'frost_temp', 'humidity_max'];
 /* Eigene Kachelnamen stehen im Formular als name_<Feld>, in der Konfiguration unter names. pump_name aus 0.1 wird zu names.pump. */
 const NAME_FIELDS = NAME_KEYS.map((k) => 'name_' + k);
@@ -64,6 +64,15 @@ export function unflattenConfig(data, prev) {
   return out;
 }
 
+/** Schalter i um d Plätze verschieben (-1 nach oben, +1 nach unten). Gibt eine neue Konfiguration zurück, die alte bleibt unverändert (Issue #18). */
+export function moveSwitch(cfg, i, d) {
+  const sw = normalizeConfig(cfg).switches.map((w) => ({ entity: w.entity, ...(w.name ? { name: w.name } : {}), ...(w.icon ? { icon: w.icon } : {}) }));
+  const j = i + d;
+  if (!sw[i] || !sw[j]) return cfg;
+  [sw[i], sw[j]] = [sw[j], sw[i]];
+  return { ...JSON.parse(JSON.stringify(cfg)), switches: sw };
+}
+
 /* In Node (Tests) gibt es kein HTMLElement. Die reinen Funktionen oben sollen trotzdem testbar sein. */
 const EditorBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
 export class CamperCardEditor extends EditorBase {
@@ -73,7 +82,7 @@ export class CamperCardEditor extends EditorBase {
     this._config = { type: 'custom:camper-card' };
     this._built = false;
   }
-  set hass(h) { this._hass = h; if (this._form) this._form.hass = h; this._updateZero(); }
+  set hass(h) { const first = !this._hass; this._hass = h; if (this._form) this._form.hass = h; this._updateZero(); if (first) this._updateOrder(); }
   get hass() { return this._hass; }
   setConfig(config) { this._config = JSON.parse(JSON.stringify(config || {})); this._update(); }
   connectedCallback() { this._build(); }
@@ -106,13 +115,22 @@ export class CamperCardEditor extends EditorBase {
       .zero button{font:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--divider-color);background:var(--secondary-background-color,transparent);color:var(--primary-text-color);cursor:pointer}
       .zero button.main{background:var(--primary-color);border-color:var(--primary-color);color:var(--text-primary-color,#fff)}
       .zero button:disabled{opacity:.5;cursor:default}
+      .ord{display:flex;align-items:center;gap:8px;margin-top:6px}
+      .ord span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+      .zero .ord button{padding:4px 12px}
       .warn{padding:12px;border-radius:8px;background:var(--warning-color,#ffa600);color:#000;font-size:13px}
-    </style><div id="form"></div><div class="zero" id="zero"></div>`;
+    </style><div id="form"></div><div class="zero" id="order" hidden></div><div class="zero" id="zero"></div>`;
     this.shadowRoot.getElementById('zero').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.a === 'zero') this._setZero(); else if (b.dataset.a === 'reset') this._resetZero();
     });
+    this.shadowRoot.getElementById('order').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      const next = moveSwitch(this._config, +b.dataset.i, b.dataset.a === 'up' ? -1 : 1);
+      if (next !== this._config) { this._config = next; this._fire(next); this._update(); }
+    });
     this._updateZero();
+    this._updateOrder();
     const ok = await this._ensureForm();
     const host = this.shadowRoot.getElementById('form');
     if (!ok) { host.innerHTML = `<div class="warn">${this._L('ed_no_form')}</div>`; return; }
@@ -153,6 +171,7 @@ export class CamperCardEditor extends EditorBase {
     if (s.name === 'sw1') return L('ed_sw_help');
     if (s.name === 'alarm') return L('ed_alarm_help');
     if (s.name === 'solar2') return L('ed_solar2_help');
+    if (s.name === 'show') return L('ed_show_help');
     return undefined;
   }
   _norm() { try { return normalizeConfig(this._config); } catch (e) { return normalizeConfig({}); } }
@@ -166,6 +185,7 @@ export class CamperCardEditor extends EditorBase {
         { name: 'name', selector: { text: {} } },
         { name: 'vehicle', selector: sel(Object.keys(GROUPS).map((k) => ({ value: k, label: TYPE_NAME[k][lang] }))) },
         { name: 'outline', selector: sel(GROUPS[c.vehicle].map((k) => ({ value: k, label: V[k].name[lang] }))) },
+        { name: 'show', selector: sel(['all', 'overview', 'leveling'].map((v) => ({ value: v, label: L('ed_show_' + v) }))) },
         { name: 'offline', selector: sel([{ value: 'grey', label: L('ed_offline_grey') }, { value: 'hide', label: L('ed_offline_hide') }]) },
         { name: 'language', selector: sel([{ value: 'auto', label: L('ed_lang_auto') }, { value: 'de', label: 'Deutsch' }, { value: 'en', label: 'English' }]) },
       ], true),
@@ -216,21 +236,39 @@ export class CamperCardEditor extends EditorBase {
       if (!data.vehicle) data.vehicle = this._norm().vehicle;
       if (!data.outline) data.outline = this._norm().outline;
       if (!data.offline) data.offline = 'grey';
+      if (!data.show) data.show = 'all';
       if (!data.language) data.language = 'auto';
       this._form.data = data;
       this._form.schema = this._schema();
     }
     this._updateZero();
+    this._updateOrder();
+  }
+  /** Reihenfolge der eigenen Schalter mit Pfeiltasten (Issue #18). Nur ab zwei Schaltern. Namen per textContent, kein HTML aus Home Assistant. */
+  _updateOrder() {
+    const box = this.shadowRoot && this.shadowRoot.getElementById('order');
+    if (!box) return;
+    const L = this._L, sw = this._norm().switches, h = this._hass;
+    box.hidden = sw.length < 2;
+    if (box.hidden) { box.innerHTML = ''; return; }
+    box.innerHTML = `<h3>${L('ed_order_title')}</h3><p>${L('ed_order_hint')}</p>${sw.map((w, i) => `<div class="ord"><span data-nm="${i}"></span>
+      <button data-a="up" data-i="${i}" aria-label="${L('ed_up')}" title="${L('ed_up')}" ${i ? '' : 'disabled'}>↑</button>
+      <button data-a="down" data-i="${i}" aria-label="${L('ed_down')}" title="${L('ed_down')}" ${i < sw.length - 1 ? '' : 'disabled'}>↓</button></div>`).join('')}`;
+    box.querySelectorAll('[data-nm]').forEach((e) => {
+      const w = sw[+e.dataset.nm], s = h && h.states[w.entity];
+      e.textContent = `${+e.dataset.nm + 1}. ${w.name || (s && s.attributes && s.attributes.friendly_name) || w.entity}`;
+    });
   }
   /** Aktuelle Neigung ohne Nullpunkt (in Grad), oder null, wenn ein Sensor fehlt oder offline ist. */
   _rawTilt() {
     const h = this._hass, e = (this._config && this._config.entities) || {};
-    if (!h || !e.pitch || !e.roll) return null;
-    const rd = (id) => { const s = h.states[id]; if (!s) return null; const n = parseFloat(s.state); return Number.isFinite(n) ? toDegrees(n, s.attributes && s.attributes.unit_of_measurement) : null; };
+    if (!h || (!e.pitch && !e.roll)) return null;
+    const rd = (id) => { const s = id && h.states[id]; if (!s) return null; const n = parseFloat(s.state); return Number.isFinite(n) ? toDegrees(n, s.attributes && s.attributes.unit_of_measurement) : null; };
     const p = rd(e.pitch), r = rd(e.roll);
-    if (p === null || r === null) return null;
+    // Eine zugewiesene, aber offline Achse verhindert den Nullpunkt. Eine nicht zugewiesene Achse zählt als 0.
+    if ((e.pitch && p === null) || (e.roll && r === null)) return null;
     const lv = this._norm().leveling;
-    return correctTilt({ pitch: p, roll: r }, { ...lv, offset_pitch: 0, offset_roll: 0 });
+    return correctTilt({ pitch: p || 0, roll: r || 0 }, { ...lv, offset_pitch: 0, offset_roll: 0 });
   }
   _updateZero() {
     const box = this.shadowRoot && this.shadowRoot.getElementById('zero');
