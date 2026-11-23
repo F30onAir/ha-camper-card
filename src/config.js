@@ -18,7 +18,8 @@ export const NAME_KEYS = ['battery', 'solar', 'solar2', 'charger', 'fresh', 'gre
 export const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
-const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
+// Leere YAML-Werte (null), Wahrheitswerte und leere Texte gelten als nicht gesetzt, dann gilt der Standard.
+const cfgNum = (x, d) => { const n = typeof x === 'number' ? x : typeof x === 'string' && x.trim() ? Number(x) : NaN; return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 /** Keilstufen aus Text („3, 6, 9“), Zahl oder Liste. Ergebnis: aufsteigende positive Zahlen. */

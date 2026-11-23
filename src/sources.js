@@ -9,9 +9,10 @@ export function chargeSources(st, v, chargerMin) {
   const pw = st.power === 'ok' ? v.power : null;
   const batCharging = pw !== null && pw > 5;
   const solarActive = st.solar === 'ok' && v.solar > 5;
+  // Sind Schalter und Messung zugewiesen, müssen beide passen. Ist einer davon offline, lässt sich das Laden nicht bestätigen.
   let chargerActive = false;
-  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger !== 'ok' || !!v.charger);
-  else if (st.charger === 'ok') chargerActive = !!v.charger;
+  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger === 'none' || (st.charger === 'ok' && !!v.charger));
+  else if (st.chargerPower === 'none' && st.charger === 'ok') chargerActive = !!v.charger;
   const charger = (st.charger === 'none' && st.chargerPower === 'none') ? 'none'
     : (st.charger === 'ok' || st.chargerPower === 'ok') ? 'ok' : 'off';
   const anySource = st.solar !== 'none' || charger !== 'none';
@@ -32,12 +33,15 @@ export function batteryHours(soc, power, unit, capAh, volt) {
   const w = u === 'kW' ? power * 1000 : u === 'A' ? power * volt : u === 'mA' ? power * volt / 1000 : power;
   if (Math.abs(w) <= 5) return null;
   const s = Math.min(100, Math.max(0, soc)), wh = capAh * volt;
-  if (w > 0 && s >= 99) return null;
+  if ((w > 0 && s >= 99) || (w < 0 && s <= 0)) return null;
   return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
 }
 
 /** Leistung in W, auch wenn der Sensor kW meldet. */
 export const toW = (v, unit) => (String(unit || '').trim() === 'kW' ? v * 1000 : v);
+/** Leistungssensoren (Batterie, Solar, Ladegerät) in kW werden beim Einlesen zu W, damit Schwellen und Anzeige stimmen. Ergebnis [Wert, Einheit]. */
+const W_KEYS = ['power', 'solar', 'solar2', 'chargerPower'];
+export const inW = (k, v, unit) => (W_KEYS.includes(k) && String(unit || '').trim() === 'kW' ? [v * 1000, 'W'] : [v, unit]);
 
 /**
  * Summe mehrerer Solarquellen (z. B. Dach und Solartasche) in W.

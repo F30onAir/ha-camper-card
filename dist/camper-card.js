@@ -1,4 +1,4 @@
-/*! Camper Card 0.5.0 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
+/*! Camper Card 0.5.1 | Home Assistant dashboard card | outlines are generic approximations, no manufacturer drawings */
 (() => {
 'use strict';
 
@@ -20,7 +20,7 @@ const STRINGS = {
     dTrack: 'Spurbreite', dBase: 'Achse bis Bugrad', dBaseT: 'Achsmitte bis Bugrad', dWheel: 'Radstand', defaults: 'Standardwerte, bitte nachmessen',
     partial: 'Nur eine Neigungsachse zugewiesen.', empty: 'Noch keine Entität zugewiesen. Das geht im Karten-Editor.',
     tl: 'Längs', ts: 'Seitlich',
-    viaSolar: 'über Solar', viaCharger: 'über Ladegerät', viaBoth: 'über Solar und Ladegerät', srcUnknown: 'Quelle unbekannt', chCharging: 'lädt', chOnIdle: 'an, lädt nicht',
+    viaSolar: 'über Solar', viaCharger: 'über Ladegerät', viaBoth: 'über Solar und Ladegerät', srcUnknown: 'Quelle unbekannt', chCharging: 'lädt', chOnIdle: 'an, lädt nicht', chPowerOff: 'an, Leistung offline',
     sideView: 'Seitenansicht',
     tempOut: 'Außen', tempFreezer: 'Gefrierfach', humIn: 'Luftfeuchte', humHigh: 'zu feucht', airOut: 'lüften', frost: 'Frostgefahr',
     runLeft: 'reicht ca. {}', runFull: 'voll in ca. {}', uMin: 'Min.', uH: 'Std.', uDays: 'Tage', over30: 'über 30 Tage',
@@ -75,7 +75,7 @@ const STRINGS = {
     dTrack: 'Track width', dBase: 'Axle to jockey wheel', dBaseT: 'Axle centre to jockey wheel', dWheel: 'Wheelbase', defaults: 'default values, please measure',
     partial: 'Only one tilt axis assigned.', empty: 'No entity assigned yet. You can do that in the card editor.',
     tl: 'Length', ts: 'Side',
-    viaSolar: 'from solar', viaCharger: 'from charger', viaBoth: 'from solar and charger', srcUnknown: 'source unknown', chCharging: 'charging', chOnIdle: 'on, not charging',
+    viaSolar: 'from solar', viaCharger: 'from charger', viaBoth: 'from solar and charger', srcUnknown: 'source unknown', chCharging: 'charging', chOnIdle: 'on, not charging', chPowerOff: 'on, power offline',
     sideView: 'Side view',
     tempOut: 'Outside', tempFreezer: 'Freezer', humIn: 'Humidity', humHigh: 'too humid', airOut: 'ventilate', frost: 'Frost risk',
     runLeft: 'lasts approx. {}', runFull: 'full in approx. {}', uMin: 'min', uH: 'h', uDays: 'days', over30: 'over 30 days',
@@ -281,8 +281,8 @@ function chargeSources(st, v, chargerMin) {
   const batCharging = pw !== null && pw > 5;
   const solarActive = st.solar === 'ok' && v.solar > 5;
   let chargerActive = false;
-  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger !== 'ok' || !!v.charger);
-  else if (st.charger === 'ok') chargerActive = !!v.charger;
+  if (st.chargerPower === 'ok') chargerActive = v.chargerPower >= (+chargerMin || 0) && (st.charger === 'none' || (st.charger === 'ok' && !!v.charger));
+  else if (st.chargerPower === 'none' && st.charger === 'ok') chargerActive = !!v.charger;
   const charger = (st.charger === 'none' && st.chargerPower === 'none') ? 'none'
     : (st.charger === 'ok' || st.chargerPower === 'ok') ? 'ok' : 'off';
   const anySource = st.solar !== 'none' || charger !== 'none';
@@ -298,11 +298,13 @@ function batteryHours(soc, power, unit, capAh, volt) {
   const w = u === 'kW' ? power * 1000 : u === 'A' ? power * volt : u === 'mA' ? power * volt / 1000 : power;
   if (Math.abs(w) <= 5) return null;
   const s = Math.min(100, Math.max(0, soc)), wh = capAh * volt;
-  if (w > 0 && s >= 99) return null;
+  if ((w > 0 && s >= 99) || (w < 0 && s <= 0)) return null;
   return { charging: w > 0, hours: w > 0 ? (100 - s) / 100 * wh / w : s / 100 * wh / -w };
 }
 
 const toW = (v, unit) => (String(unit || '').trim() === 'kW' ? v * 1000 : v);
+const W_KEYS = ['power', 'solar', 'solar2', 'chargerPower'];
+const inW = (k, v, unit) => (W_KEYS.includes(k) && String(unit || '').trim() === 'kW' ? [v * 1000, 'W'] : [v, unit]);
 
 function solarTotal(parts) {
   const used = parts.filter((p) => p.st !== 'none');
@@ -376,7 +378,7 @@ const NAME_KEYS = ['battery', 'solar', 'solar2', 'charger', 'fresh', 'grey', 'ga
 const MAX_SWITCHES = 6;
 const MAX_NAME = 40;
 
-const cfgNum = (x, d) => { const n = typeof x === 'string' && x.trim() === '' ? NaN : Number(x); return Number.isFinite(n) ? n : d; };
+const cfgNum = (x, d) => { const n = typeof x === 'number' ? x : typeof x === 'string' && x.trim() ? Number(x) : NaN; return Number.isFinite(n) ? n : d; };
 const cfgClamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 function parseSteps(s) {
@@ -447,7 +449,7 @@ function normalizeConfig(raw) {
 }
 
 // ---- card.js ----
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 const EX = 2.5, MAXA = 7, BUB = 20, HOLD_MS = 900;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -510,7 +512,7 @@ function readStates(hass, cfg) {
     if (BOOL_KEYS.has(k)) { out.st[k] = 'ok'; out.v[k] = s.state === 'on'; continue; }
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
-    out.st[k] = 'ok'; out.v[k] = n; out.unit[k] = s.attributes && s.attributes.unit_of_measurement;
+    out.st[k] = 'ok'; [out.v[k], out.unit[k]] = inW(k, n, s.attributes && s.attributes.unit_of_measurement);
   }
   for (const [k, ak] of [['gas', 'gas_availability'], ['gas2', 'gas2_availability']]) {
     const ga = cfg.entities[ak];
@@ -841,7 +843,7 @@ function tilesHTML() {
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
     const v = cpOk ? nf(val('chargerPower')) : (val('charger') ? t('on') : t('off'));
-    const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
+    const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t(st('chargerPower') === 'off' ? 'chPowerOff' : 'chOnIdle') : (swOk ? t('off') : ''));
     out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
   const f = st('fresh'), ff = frostOf('fresh');
@@ -1428,8 +1430,10 @@ function flattenConfig(cfg) {
   });
   return d;
 }
+const OWN = new Set([...TOP_FIELDS, 'type', 'entities', 'leveling', 'names', 'switches', 'pump_name', 'frost_warning', 'alarm_controls']);
 function unflattenConfig(data, prev) {
   const out = { type: (prev && prev.type) || 'custom:camper-card' };
+  if (prev) for (const k of Object.keys(prev)) if (!OWN.has(k)) out[k] = prev[k];
   for (const k of TOP_FIELDS) if (!empty(data[k]) && data[k] !== false) out[k] = data[k];
   const ent = {}; for (const k of ENT_FIELDS) if (!empty(data[k])) ent[k] = data[k];
   const lv = {}; for (const k of LV_FIELDS) if (!empty(data[k]) && data[k] !== false) lv[k] = data[k];
@@ -1621,9 +1625,17 @@ class CamperCardEditor extends EditorBase {
     if (!box) return;
     const L = this._L, raw = this._rawTilt(), lv = this._norm().leveling;
     const f = (v) => new Intl.NumberFormat(this._lang === 'de' ? 'de-DE' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(v);
-    const now = raw ? `<p>${L('ed_zero_now')}: <span class="now">${L('ed_pitch')} ${f(raw.pitch)}°, ${L('ed_roll')} ${f(raw.roll)}°</span></p>` : `<p>${L('ed_zero_none')}</p>`;
-    const set = (lv.offset_pitch || lv.offset_roll) ? `<p>${L('ed_zero_set')}: <span class="now">${f(lv.offset_pitch)}°, ${f(lv.offset_roll)}°</span></p>` : '';
-    box.innerHTML = `<h3>${L('ed_zero_title')}</h3>${now}${set}<p>${L('ed_zero_hint')}</p>
+    const now = raw ? `${L('ed_pitch')} ${f(raw.pitch)}°, ${L('ed_roll')} ${f(raw.roll)}°` : '';
+    const set = !!(lv.offset_pitch || lv.offset_roll), off = set ? `${f(lv.offset_pitch)}°, ${f(lv.offset_roll)}°` : '';
+    const key = `${!!raw}|${set}|${this._lang}`;
+    if (this._zk === key) {
+      const n = box.querySelector('[data-n]'), o = box.querySelector('[data-o]');
+      if (n) n.textContent = now; if (o) o.textContent = off;
+      return;
+    }
+    this._zk = key;
+    box.innerHTML = `<h3>${L('ed_zero_title')}</h3><p>${raw ? `${L('ed_zero_now')}: <span class="now" data-n>${now}</span>` : L('ed_zero_none')}</p>
+      ${set ? `<p>${L('ed_zero_set')}: <span class="now" data-o>${off}</span></p>` : ''}<p>${L('ed_zero_hint')}</p>
       <div class="btns"><button class="main" data-a="zero" ${raw ? '' : 'disabled'}>${L('ed_zero')}</button>${set ? `<button data-a="reset">${L('ed_zero_reset')}</button>` : ''}</div>`;
   }
   _setZero() {

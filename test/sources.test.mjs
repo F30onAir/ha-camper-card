@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chargeSources, sourceKey, solarTotal, toW } from '../src/sources.js';
+import { chargeSources, sourceKey, solarTotal, toW, inW } from '../src/sources.js';
 
 const ok = { power: 'ok', solar: 'ok', charger: 'ok', chargerPower: 'ok' };
 const run = (v, st = ok, min = 10) => sourceKey(chargeSources(st, v, min));
@@ -83,4 +83,35 @@ test('0.5: Zwei Solarquellen werden in W addiert, offline zählt nicht', () => {
   // Summe beider Quellen erkennt Solar als Ladequelle, auch wenn jede allein unter 5 W liegt
   const w = solarTotal([{ st: 'ok', v: 4, unit: 'W' }, { st: 'ok', v: 4, unit: 'W' }]).w;
   assert.equal(sourceKey(chargeSources({ power: 'ok', solar: 'ok', charger: 'none', chargerPower: 'none' }, { power: 7, solar: w }, 10)), 'solar');
+});
+
+test('0.5.1: Leistung in kW wird beim Einlesen zu W (PR #8)', () => {
+  assert.deepEqual(inW('power', 0.145, 'kW'), [145, 'W']);
+  assert.deepEqual(inW('chargerPower', 0.3, ' kW '), [300, 'W']);
+  assert.deepEqual(inW('solar2', 0.095, 'kW'), [95, 'W']);
+  assert.deepEqual(inW('power', 12, 'A'), [12, 'A']); // Strom bleibt Strom
+  assert.deepEqual(inW('fresh', 2, 'kW'), [2, 'kW']); // nur Leistungssensoren
+  const [pw] = inW('power', 0.145, 'kW'), [cp] = inW('chargerPower', 0.3, 'kW');
+  const s = chargeSources({ power: 'ok', solar: 'none', charger: 'none', chargerPower: 'ok' }, { power: pw, chargerPower: cp }, 10);
+  assert.equal(s.batCharging, true);
+  assert.equal(sourceKey(s), 'charger');
+});
+
+test('0.5.1: Offline-Messung des Ladegeräts bestätigt kein Laden (PR #11)', () => {
+  // Messung offline, Schalter an, Solar liefert: nur Solar, nicht „beide“
+  assert.equal(sourceKey(chargeSources({ ...ok, chargerPower: 'off' }, { power: 120, solar: 200, charger: true }, 10)), 'solar');
+  // Messung offline, Schalter an, kein Solar: unbekannt statt Ladegerät
+  assert.equal(sourceKey(chargeSources({ ...ok, solar: 'none', chargerPower: 'off' }, { power: 120, charger: true }, 10)), 'unknown');
+  // Schalter offline, Messung zeigt Leistung: ebenfalls nicht bestätigt
+  assert.equal(chargeSources({ ...ok, charger: 'off' }, { power: 120, solar: 0, chargerPower: 300 }, 10).chargerActive, false);
+  // Nur einer zugewiesen: der entscheidet weiter allein
+  assert.equal(chargeSources({ ...ok, chargerPower: 'none' }, { power: 120, solar: 0, charger: true }, 10).chargerActive, true);
+  assert.equal(chargeSources({ ...ok, charger: 'none' }, { power: 120, solar: 0, chargerPower: 300 }, 10).chargerActive, true);
+});
+
+test('0.5.1: Leere Batterie beim Entladen zeigt keine Restlaufzeit (PR #14)', () => {
+  assert.equal(batteryHours(0, -40, 'W', 100, 12.8), null);
+  assert.equal(batteryHours(-2, -40, 'W', 100, 12.8), null);
+  assert.equal(batteryHours(0, 40, 'W', 100, 12.8).charging, true); // Laden ab 0 % geht weiter
+  assert.ok(batteryHours(1, -40, 'W', 100, 12.8).hours > 0);
 });

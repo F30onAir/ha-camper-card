@@ -4,7 +4,7 @@ Dashboard card for Home Assistant: a caravan, motorhome or camper van in side vi
 
 *Deutsch:* Dashboard-Karte für Home Assistant: Wohnwagen, Wohnmobil oder Camper Van in der Seitenansicht mit Tanks, Batterie, Solar und Licht, dazu Ausrichten mit Keilhöhen. Deutsch und Englisch, funktioniert ohne Internet, braucht keine Integration.
 
-> **Status: early test version (0.5.0).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
+> **Status: early test version (0.5.1).** Feedback is very welcome, please open an [issue](https://github.com/F30onAir/ha-camper-card/issues). Vehicle outlines are self-drawn generic approximations, not manufacturer drawings.
 
 <p align="center"><img src="https://raw.githubusercontent.com/F30onAir/ha-camper-card/main/docs/images/overview-dark.png" alt="Camper Card in dark theme: caravan in side view with lit windows, solar panel, battery, fresh water tank and gas bottle, tiles for battery, solar, water, gas and temperatures below" width="640"></p>
 
@@ -51,7 +51,7 @@ Number fields also take `input_number` and `number`, switch fields also `input_b
 
 **Tile names.** Every tile and switch can get your own label under `names:` (in the editor: "Tile names"), in any language. Empty means the default name. Status texts and the levelling instructions stay in English or German.
 
-**Remaining battery time.** Set `battery_capacity` (Ah) and the card estimates from `battery` (%) and `battery_power` how long the battery lasts when discharging, or when it is full when charging. `battery_power` may be in W, kW or A (A works without conversion), `battery_voltage` defaults to 12.8 V. Below 5 W the card shows no time. It is an estimate based on the current power, a BMS with its own "time remaining" sensor may be more precise.
+**Remaining battery time.** Set `battery_capacity` (Ah) and the card estimates from `battery` (%) and `battery_power` how long the battery lasts when discharging, or when it is full when charging. `battery_power` may be in W, kW or A (A works without conversion), `battery_voltage` defaults to 12.8 V. Below 5 W, or when the battery is empty, the card shows no time. It is an estimate based on the current power, a BMS with its own "time remaining" sensor may be more precise.
 
 **Frost warning.** When a tank holds water (more than 2 %) and the temperature falls below `frost_temp` (default 3 °C), the tank tile says "Frost risk" and the tank in the side view gets a snowflake. Tanks inside the body use the inside temperature first, underfloor tanks the outside temperature first. Turn it off with `frost_warning: false`.
 
@@ -63,7 +63,7 @@ Number fields also take `input_number` and `number`, switch fields also `input_b
 
 **Two solar sources.** With `solar2` assigned, the solar tile shows the total and both values below it, for example "Solar 1 210 W · Solar 2 95 W". Name them under `names:` (`solar`, `solar2`), for example "Roof" and "Solar bag". The roof panel in the side view shows the total, and the total counts for the charge source. A source that is offline is shown as "offline" and left out of the total. kW readings are converted to W.
 
-**Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. The card shows solar, charger, both, or "unknown" if no source explains the charging.
+**Charge source.** A BMS only measures the total at the battery. The card counts the battery as charging above 5 W and then looks at the sources: solar above 5 W means solar. The charger counts when its switch is on and its plug draws at least `charger_min_power` (default 10 W). If only one of the two is assigned, that one decides. If both are assigned and one of them is offline, the charger does not count. Power readings in kW (battery, solar, charger) are converted to W. The card shows solar, charger, both, or "unknown" if no source explains the charging.
 
 **Tested in a real caravan:** LiFePO4 battery with Bluetooth BMS via [BMS BLE](https://github.com/patman15/BMS_BLE-HA) (HACS), gas bottle via the built-in Mopeka integration, fresh water via an E-Waterlevel Bluetooth sensor read by an ESP32 with [esphome-ewaterlevel](https://github.com/Fabian-Schmidt/esphome-ewaterlevel), taps via a Zigbee switch. Not tested yet: a real tilt sensor (levelling was checked with simulated values).
 

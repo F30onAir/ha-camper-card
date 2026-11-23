@@ -36,8 +36,11 @@ export function flattenConfig(cfg) {
   });
   return d;
 }
+/* Schlüssel, die der Editor selbst schreibt. Alles andere (grid_options, visibility, view_layout, card_mod …) bleibt unverändert erhalten. */
+const OWN = new Set([...TOP_FIELDS, 'type', 'entities', 'leveling', 'names', 'switches', 'pump_name', 'frost_warning', 'alarm_controls']);
 export function unflattenConfig(data, prev) {
   const out = { type: (prev && prev.type) || 'custom:camper-card' };
+  if (prev) for (const k of Object.keys(prev)) if (!OWN.has(k)) out[k] = prev[k];
   for (const k of TOP_FIELDS) if (!empty(data[k]) && data[k] !== false) out[k] = data[k];
   const ent = {}; for (const k of ENT_FIELDS) if (!empty(data[k])) ent[k] = data[k];
   const lv = {}; for (const k of LV_FIELDS) if (!empty(data[k]) && data[k] !== false) lv[k] = data[k];
@@ -234,9 +237,18 @@ export class CamperCardEditor extends EditorBase {
     if (!box) return;
     const L = this._L, raw = this._rawTilt(), lv = this._norm().leveling;
     const f = (v) => new Intl.NumberFormat(this._lang === 'de' ? 'de-DE' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(v);
-    const now = raw ? `<p>${L('ed_zero_now')}: <span class="now">${L('ed_pitch')} ${f(raw.pitch)}°, ${L('ed_roll')} ${f(raw.roll)}°</span></p>` : `<p>${L('ed_zero_none')}</p>`;
-    const set = (lv.offset_pitch || lv.offset_roll) ? `<p>${L('ed_zero_set')}: <span class="now">${f(lv.offset_pitch)}°, ${f(lv.offset_roll)}°</span></p>` : '';
-    box.innerHTML = `<h3>${L('ed_zero_title')}</h3>${now}${set}<p>${L('ed_zero_hint')}</p>
+    const now = raw ? `${L('ed_pitch')} ${f(raw.pitch)}°, ${L('ed_roll')} ${f(raw.roll)}°` : '';
+    const set = !!(lv.offset_pitch || lv.offset_roll), off = set ? `${f(lv.offset_pitch)}°, ${f(lv.offset_roll)}°` : '';
+    // Neu aufbauen nur, wenn sich der Aufbau ändert. Sonst nur die Zahlen, damit ein Tipp auf die Taste nicht verloren geht.
+    const key = `${!!raw}|${set}|${this._lang}`;
+    if (this._zk === key) {
+      const n = box.querySelector('[data-n]'), o = box.querySelector('[data-o]');
+      if (n) n.textContent = now; if (o) o.textContent = off;
+      return;
+    }
+    this._zk = key;
+    box.innerHTML = `<h3>${L('ed_zero_title')}</h3><p>${raw ? `${L('ed_zero_now')}: <span class="now" data-n>${now}</span>` : L('ed_zero_none')}</p>
+      ${set ? `<p>${L('ed_zero_set')}: <span class="now" data-o>${off}</span></p>` : ''}<p>${L('ed_zero_hint')}</p>
       <div class="btns"><button class="main" data-a="zero" ${raw ? '' : 'disabled'}>${L('ed_zero')}</button>${set ? `<button data-a="reset">${L('ed_zero_reset')}</button>` : ''}</div>`;
   }
   _setZero() {

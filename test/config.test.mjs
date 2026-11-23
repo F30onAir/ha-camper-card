@@ -144,3 +144,22 @@ test('0.5: Zweite Solarquelle mit eigenem Namen', () => {
   assert.deepEqual(c.entities, { solar: 'sensor.roof', solar2: 'sensor.bag' });
   assert.deepEqual(c.names, { solar: 'Dach', solar2: 'Solartasche' });
 });
+
+test('0.5.1: Leere YAML-Werte (null) bekommen den Standard, nicht 0 (PR #12)', () => {
+  const c = normalizeConfig({ frost_temp: null, battery_voltage: null, humidity_max: null, charger_min_power: null, battery_capacity: null,
+    leveling: { max_wedge: null, tolerance: null, track: null, offset_pitch: null } });
+  assert.equal(c.frost_temp, 3);
+  assert.equal(c.battery_voltage, 12.8);
+  assert.equal(c.humidity_max, 70);
+  assert.equal(c.charger_min_power, 10);
+  assert.equal(c.battery_capacity, null);
+  assert.equal(c.leveling.max_wedge, 12);
+  assert.equal(c.leveling.tolerance, 0.2);
+  assert.equal(c.leveling.defaults, true);
+  assert.equal(c.leveling.offset_pitch, 0);
+  // Echte Zahlen und Zahlen als Text gelten weiter, auch 0
+  assert.equal(normalizeConfig({ frost_temp: 0 }).frost_temp, 0);
+  assert.equal(normalizeConfig({ frost_temp: '1.5' }).frost_temp, 1.5);
+  assert.equal(normalizeConfig({ leveling: { max_wedge: 0 } }).leveling.max_wedge, 0);
+  assert.equal(normalizeConfig({ battery_voltage: true }).battery_voltage, 12.8);
+});

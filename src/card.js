@@ -2,7 +2,7 @@
 import { STRINGS, langOf } from './i18n.js';
 import { V, TYPE_NAME } from './vehicles.js';
 import { DEG, calcLeveling, round5, nearestStep, toDegrees, correctTilt } from './leveling.js';
-import { chargeSources, batteryHours, solarTotal, toW } from './sources.js';
+import { chargeSources, batteryHours, solarTotal, toW, inW } from './sources.js';
 import { AL_MODES, alarmModes, alarmKind, alarmNeedsCode, openSensors, isAlarmo, alarmRemaining, forceMode, alarmCall } from './alarm.js';
 import { normalizeConfig, ENTITY_KEYS, CFG_OF, BOOL_KEYS } from './config.js';
 
@@ -79,7 +79,7 @@ function readStates(hass, cfg) {
     if (BOOL_KEYS.has(k)) { out.st[k] = 'ok'; out.v[k] = s.state === 'on'; continue; }
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) { out.st[k] = 'off'; continue; }
-    out.st[k] = 'ok'; out.v[k] = n; out.unit[k] = s.attributes && s.attributes.unit_of_measurement;
+    out.st[k] = 'ok'; [out.v[k], out.unit[k]] = inW(k, n, s.attributes && s.attributes.unit_of_measurement);
   }
   for (const [k, ak] of [['gas', 'gas_availability'], ['gas2', 'gas2_availability']]) {
     const ga = cfg.entities[ak];
@@ -420,7 +420,7 @@ function tilesHTML() {
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
     const v = cpOk ? nf(val('chargerPower')) : (val('charger') ? t('on') : t('off'));
-    const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t('chOnIdle') : (swOk ? t('off') : ''));
+    const sub = src.chargerActive ? t('chCharging') : (swOk && val('charger') ? t(st('chargerPower') === 'off' ? 'chPowerOff' : 'chOnIdle') : (swOk ? t('off') : ''));
     out.push(tile(cpOk ? 'chargerPower' : 'charger', 'plug', 'var(--c-grid)', nameOf('charger'), v, cpOk ? unitOf('chargerPower', 'W') : '', '', sub).replace(`data-tile="${cpOk ? 'chargerPower' : 'charger'}"`, 'data-tile="charger"'));
   }
   const f = st('fresh'), ff = frostOf('fresh');

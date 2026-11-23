@@ -105,3 +105,21 @@ test('Editor 0.5: zweite Solarquelle und ihr Name überstehen das Formular', () 
   assert.deepEqual(back.names, { solar2: 'Solartasche' });
   assert.equal('solar2' in unflattenConfig({ ...flat, solar2: '' }, c2).entities, false);
 });
+
+test('Editor 0.5.1: Layout, Sichtbarkeit und fremde Optionen bleiben erhalten (PR #9)', () => {
+  const c9 = { ...cfg, grid_options: { columns: 6, rows: 'auto' }, visibility: [{ condition: 'screen', media_query: '(min-width: 768px)' }],
+    view_layout: { position: 'sidebar' }, card_mod: { style: 'ha-card { border: 0 }' } };
+  const back = unflattenConfig({ ...flattenConfig(c9), name: 'Camper' }, c9);
+  assert.equal(back.name, 'Camper');
+  assert.deepEqual(back.grid_options, c9.grid_options);
+  assert.deepEqual(back.visibility, c9.visibility);
+  assert.deepEqual(back.view_layout, c9.view_layout);
+  assert.deepEqual(back.card_mod, c9.card_mod);
+  // Eigene Schlüssel schreibt weiter nur der Editor: pump_name wird zu names.pump, gelöschte Werte bleiben gelöscht
+  const old = { ...cfg, pump_name: 'Tauchpumpe', frost_warning: false, alarm_controls: false };
+  const b2 = unflattenConfig({ ...flattenConfig(old), frost_warning: true, alarm_controls: true }, old);
+  assert.equal('pump_name' in b2, false);
+  assert.equal(b2.names.pump, 'Tauchpumpe');
+  assert.equal('frost_warning' in b2, false);
+  assert.equal('alarm_controls' in b2, false);
+});
