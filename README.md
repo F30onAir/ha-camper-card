@@ -233,3 +233,5 @@ npm test        # levelling maths, charge sources, alarm logic, config, editor m
 ```
 
 `test/harness.html` shows the built card with simulated Home Assistant data. Serve the project folder with any static web server and open that page.
+
+`test/availability.html` runs browser regressions for sensor outages, more-info links, keyboard focus and view restoration. Serve the project folder and open the page; the results should show zero failures. Append `?bundle` to test the generated `dist/camper-card.js` after building. These checks use simulated Home Assistant states and need no external packages.

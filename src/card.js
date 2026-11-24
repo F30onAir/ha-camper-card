@@ -248,8 +248,12 @@ function solarSum() {
 /* Batterieleistung in W für Schwellen und Ladeerkennung. Die Anzeige bleibt in der Einheit des Sensors (etwa A). */
 const batW = () => powerW(val('power'), unitOf('power', 'W'), C.cfg.battery_voltage);
 function sources() {
-  return chargeSources({ power: st('power'), solar: solarSum().st, charger: st('charger'), chargerPower: st('chargerPower') },
-    { ...C.v, power: batW(), solar: solarSum().w }, C.cfg.charger_min_power);
+  // Ausgeblendete Offline-Sensoren bleiben für die Erkennung zugewiesen.
+  const solar = solarTotal(['solar', 'solar2'].map((k) => ({ st: C.raw[k], v: val(k), unit: unitOf(k, 'W') })));
+  const src = chargeSources({ ...C.raw, solar: solar.st },
+    { ...C.v, power: batW(), solar: solar.w }, C.cfg.charger_min_power);
+  if (src.charger === 'off' && C.cfg.offline === 'hide') src.charger = 'none';
+  return src;
 }
 function srcText(src) {
   if (!src.batCharging) return '';
@@ -400,7 +404,7 @@ const signed = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v)
 function tilesHTML() {
   const out = [];
   const b = st('battery'), p = st('power'), src = sources(), sTxt = srcText(src);
-  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile('battery', 'battery', nameOf('battery')));
+  if (b === 'off' || (b === 'none' && p === 'off')) out.push(offTile(b === 'off' ? 'battery' : 'power', 'battery', nameOf('battery')));
   else if (b === 'ok') {
     const pw = p === 'ok' ? val('power') : null;
     const pu = unitOf('power', 'W'), unit = pw === null ? '%' : `% · ${signed(pw, /A/.test(pu) && Math.abs(pw) < 100 ? 1 : 0)} ${pu}`, w = pw === null ? 0 : batW();
@@ -418,7 +422,7 @@ function tilesHTML() {
     if (SO.st === 'off') out.push(offTile(k, 'sun', nameOf(k)));
     else out.push(tile(k, 'sun', 'var(--c-sun)', nameOf(k), nf(val(k)), unitOf(k, 'W')));
   }
-  if (src.charger === 'off') out.push(offTile('charger', 'plug', nameOf('charger')));
+  if (src.charger === 'off') out.push(offTile(C.cfg.entities.charger ? 'charger' : 'chargerPower', 'plug', nameOf('charger')));
   else if (src.charger === 'ok') {
     const cpOk = st('chargerPower') === 'ok', swOk = st('charger') === 'ok';
     const v = cpOk ? nf(val('chargerPower')) : (val('charger') ? t('on') : t('off'));
@@ -881,19 +885,24 @@ export class CamperCard extends HTMLElement {
       const T = tilt();
       const only = cfg.show === 'all' ? null : cfg.show;
       if (only) this._ui.view = only === 'leveling' ? 'level' : 'overview';
-      else if (T.state === 'none') this._ui.view = 'overview';
+      else if (!cfg.entities.pitch && !cfg.entities.roll) this._ui.view = 'overview';
       this._target = { p: T.pitch, r: T.roll };
       if (this._first) { this._anim.p = T.pitch; this._anim.r = T.roll; this._first = false; }
       const ae = this.shadowRoot.activeElement, fid = ae && ae.dataset ? ae.dataset.fid : null;
+      const tileId = ae && ae.dataset ? ae.dataset.tile : null;
       const name = cfg.name || TYPE_NAME[cfg.vehicle][C.lang];
-      const v = this._ui.view;
+      const v = !only && T.state === 'none' ? 'overview' : this._ui.view;
       const seg = !only && T.state !== 'none' ? `<div class="seg" role="tablist"><button role="tab" aria-selected="${v === 'overview'}" class="${v === 'overview' ? 'on' : ''}" data-a="view" data-v="overview" data-fid="v1">${t('overview')}</button><button role="tab" aria-selected="${v === 'level'}" class="${v === 'level' ? 'on' : ''}" data-a="view" data-v="level" data-fid="v2">${t('level')}</button></div>` : '';
       const tpl = document.createElement('template');
       tpl.innerHTML = `<div class="cc-head"><div class="cc-name">${esc(name)}</div>${seg}</div>${v === 'level' ? levelHTML(T) : overviewHTML(T, !only)}`;
       morph(this._root, tpl.content);
       if (code) { const n = this._root.querySelector('[data-code]'); if (n && !n.value) n.value = code; }
       // Nur falls das fokussierte Element doch ersetzt wurde. Ohne preventScroll springt die Seite zur Karte (Issue #4).
-      if (fid && !ae.isConnected) { const el = this._root.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
+      if (ae && !ae.isConnected) {
+        const selector = fid ? `[data-fid="${fid}"]` : tileId ? `[data-tile="${tileId}"]` : null;
+        const el = selector && this._root.querySelector(selector);
+        if (el) el.focus({ preventScroll: true });
+      }
     } finally { C = null; }
     this._fit();
     this._startAnim();
