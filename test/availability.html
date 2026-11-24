@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Camper Card availability regressions</title>
+<style>body { font: 16px system-ui; } pre { white-space: pre-wrap; } #fixture { width: 600px; }</style>
+<h1>Sensor availability regressions</h1>
+<p>Serve the project root and open this page. No Home Assistant connection or external packages are needed.
+Append <code>?bundle</code> to test the generated <code>dist/camper-card.js</code> instead of the source modules.</p>
+<pre id="results">Running…</pre><div id="fixture"></div>
+<script type="module">
+let tag = 'availability-card';
+if (new URLSearchParams(location.search).has('bundle')) {
+  await import('../dist/camper-card.js');
+  tag = 'camper-card';
+} else {
+  const { CamperCard } = await import('../src/card.js');
+  customElements.define(tag, CamperCard);
+}
+const fixture = document.querySelector('#fixture'), results = [];
+const sensor = (state, unit) => ({ state: String(state), attributes: { unit_of_measurement: unit } });
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+function card(config, states) {
+  const c = document.createElement(tag);
+  c.setConfig({ language: 'en', ...config });
+  fixture.append(c);
+  c.hass = { states, language: 'en', themes: {}, callService() { throw new Error('Unexpected service call'); } };
+  return c;
+}
+function test(name, fn) {
+  try { fn(); results.push({ name, pass: true }); }
+  catch (e) { results.push({ name, pass: false, error: e.message }); }
+  finally { fixture.replaceChildren(); }
+}
+const energy = { battery: 'sensor.b', battery_power: 'sensor.p', solar: 'sensor.s', charger: 'switch.c', charger_power: 'sensor.c' };
+const charging = { 'sensor.b': sensor(50, '%'), 'sensor.p': sensor(100, 'W'), 'sensor.s': sensor(150, 'W'),
+  'switch.c': sensor('on'), 'sensor.c': sensor(120, 'W') };
+const sourceText = (c) => c.shadowRoot.querySelector('[data-sub="battery"]')?.textContent || '';
+for (const offline of ['grey', 'hide']) {
+  for (const missing of ['sensor.c', 'switch.c']) test(`${offline}: unavailable ${missing} cannot confirm charger activity`, () => {
+    const c = card({ offline, entities: energy }, { ...charging, [missing]: sensor('unavailable') });
+    assert(sourceText(c) === 'from solar', sourceText(c));
+  });
+  test(`${offline}: known online sources still confirm charging`, () => {
+    assert(sourceText(card({ offline, entities: energy }, charging)) === 'from solar and charger', 'Missing known charger');
+  });
+}
+test('Switch-only configuration still confirms charger activity', () => {
+  const { charger_power, ...entities } = energy;
+  assert(sourceText(card({ offline: 'hide', entities }, charging)) === 'from solar and charger', 'Switch-only charger lost');
+});
+test('Hidden unavailable sources retain unknown-source warning', () => {
+  const c = card({ offline: 'hide', entities: energy }, { ...charging, 'sensor.s': sensor('unavailable'),
+    'switch.c': sensor('unavailable'), 'sensor.c': sensor('unavailable') });
+  assert(sourceText(c).includes('unknown'), sourceText(c));
+  assert(!c.shadowRoot.querySelector('[data-tile="charger"]'), 'Hidden charger tile is visible');
+});
+function checkDetails(config, states, id) {
+  const c = card(config, states);
+  let opened;
+  c.addEventListener('hass-more-info', (e) => { opened = e.detail.entityId; });
+  const tile = c.shadowRoot.querySelector('.tile');
+  tile.click();
+  assert(opened === id, `Expected ${id}, opened ${opened}`);
+  assert(tile.tabIndex === 0, 'Tile is not keyboard-accessible');
+}
+for (const [key, id] of [['battery_power', 'sensor.p'], ['charger_power', 'sensor.c']]) {
+  for (const state of ['unavailable', '42']) test(`${key}: ${state} sensor opens its details`, () => {
+    checkDetails({ entities: { [key]: id } }, { [id]: sensor(state, 'W') }, id);
+  });
+}
+test('Offline battery percentage still opens the percentage sensor', () => {
+  checkDetails({ entities: { battery: 'sensor.b', battery_power: 'sensor.p' } },
+    { 'sensor.b': sensor('unavailable'), 'sensor.p': sensor(42, 'W') }, 'sensor.b');
+});
+for (const [before, after] of [['50', 'unavailable'], ['unavailable', '50']]) {
+  test(`Keyboard focus survives preceding battery changing from ${before} to ${after}`, () => {
+    const states = { 'sensor.b': sensor(before, '%'), 'sensor.f': sensor(60, '%') };
+    const c = card({ offline: 'hide', entities: { battery: 'sensor.b', fresh: 'sensor.f' } }, states);
+    c.shadowRoot.querySelector('[data-tile="fresh"]').focus();
+    c.hass = { ...c.hass, states: { ...states, 'sensor.b': sensor(after, '%') } };
+    assert(c.shadowRoot.activeElement?.dataset.tile === 'fresh', 'Water tile lost focus');
+  });
+}
+test('A removed tile does not transfer focus to another sensor', () => {
+  const states = { 'sensor.b': sensor(50, '%'), 'sensor.f': sensor(60, '%') };
+  const c = card({ offline: 'hide', entities: { battery: 'sensor.b', fresh: 'sensor.f' } }, states);
+  c.shadowRoot.querySelector('[data-tile="battery"]').focus();
+  c.hass = { ...c.hass, states: { ...states, 'sensor.b': sensor('unavailable') } };
+  assert(!c.shadowRoot.activeElement, 'Focus moved to a different sensor');
+});
+for (const offline of ['grey', 'hide']) test(`${offline}: levelling selection survives a temporary outage`, () => {
+  const states = { 'sensor.p': sensor(1, '°') };
+  const c = card({ offline, entities: { pitch: 'sensor.p' } }, states);
+  c.shadowRoot.querySelector('[data-v="level"]').click();
+  c.hass = { ...c.hass, states: { 'sensor.p': sensor('unavailable') } };
+  if (offline === 'hide') assert(!c.shadowRoot.querySelector('.seg'), 'Offline tabs should stay hidden');
+  c.hass = { ...c.hass, states };
+  assert(c.shadowRoot.querySelector('[data-v="level"]').getAttribute('aria-selected') === 'true', 'Returned to overview');
+});
+test('Removing tilt sensors resets the selection to overview', () => {
+  const states = { 'sensor.p': sensor(1, '°') }, config = { entities: { pitch: 'sensor.p' } };
+  const c = card(config, states);
+  c.shadowRoot.querySelector('[data-v="level"]').click();
+  c.setConfig({ entities: {} });
+  c.setConfig(config);
+  assert(c.shadowRoot.querySelector('[data-v="overview"]').getAttribute('aria-selected') === 'true', 'Old view retained after configuration removal');
+});
+const failed = results.filter((r) => !r.pass).length;
+document.querySelector('#results').textContent = JSON.stringify({ passed: results.length - failed, failed, results }, null, 2);
+document.title = `${failed ? 'FAIL' : 'PASS'}: Camper Card availability regressions`;
+</script>
